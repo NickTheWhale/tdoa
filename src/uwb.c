@@ -7,8 +7,8 @@
 
 #include <zephyr/sys/printk.h>
 
-#define TX_ANT_DLY 16436
-#define RX_ANT_DLY 16436
+#define TX_ANTENNA_DELAY 16436
+#define RX_ANTENNA_DELAY 16436
 
 static dwt_config_t dwt_config = {
     5,               /* Channel number. */
@@ -43,13 +43,21 @@ int uwb_init()
 
     dwt_configure(&dwt_config);
 
-    dwt_setrxantennadelay(RX_ANT_DLY);
-    dwt_settxantennadelay(TX_ANT_DLY);
+    dwt_settxantennadelay(TX_ANTENNA_DELAY);
+    dwt_setrxantennadelay(RX_ANTENNA_DELAY);
 
     port_set_deca_isr(test_isr);
 
     dwt_setcallbacks(&tx_done_callback, &rx_ok_callback, &rx_timeout_callback, &rx_error_callback);
-    dwt_setinterrupt(DWT_INT_TFRS | DWT_INT_RFCG | DWT_INT_RFTO | DWT_INT_RXPTO | DWT_INT_RPHE | DWT_INT_RFCE | DWT_INT_RFSL | DWT_INT_SFDT | DWT_INT_ARFE, 1);
+    dwt_setinterrupt(DWT_INT_TFRS
+                   | DWT_INT_RFCG
+                   | DWT_INT_RFTO 
+                   | DWT_INT_RXPTO 
+                   | DWT_INT_RPHE 
+                   | DWT_INT_RFCE 
+                   | DWT_INT_RFSL 
+                   | DWT_INT_SFDT 
+                   | DWT_INT_ARFE, 1);
 
     return UWB_SUCCESS;
 }
@@ -60,6 +68,22 @@ int uwb_listen()
     if (dwt_rxenable(DWT_START_RX_IMMEDIATE) != DWT_SUCCESS)
     {
         return -1;
+    }
+
+    return UWB_SUCCESS;
+}
+
+int uwb_transmit(uint8* data, uint16_t length)
+{
+    if (dwt_writetxdata(length, data, 0) != DWT_SUCCESS)
+    {
+        return -1;
+    }
+    dwt_writetxfctrl(length, 0, 0);
+
+    if (dwt_starttx(DWT_START_TX_IMMEDIATE) != DWT_SUCCESS)
+    {
+        return -2;
     }
 
     return UWB_SUCCESS;
