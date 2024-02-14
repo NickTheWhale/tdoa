@@ -5,8 +5,6 @@
 #include <zephyr/sys/printk.h>
 #include <zephyr/kernel.h>
 
-#define APP_MODE (1) // 0 for tag, 1 for anchor
-
 int tag_loop();
 int anchor_loop();
 
@@ -43,8 +41,8 @@ int tag_loop()
     printk("Listening...\n");
     while (1)
     {
+        k_msleep(10);
         dwt_isr();
-        k_msleep(1);
     }
 
     return 0;
@@ -55,11 +53,14 @@ int anchor_loop()
     uint8 data[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     while (1)
     {
-        if (uwb_transmit(&data, 10) != UWB_SUCCESS)
+        if (uwb_transmit(data, 10) != UWB_SUCCESS)
         {
             printk("Failed to transmit\n");
         }
+
         k_msleep(1000);
+        
+        dwt_isr();
     }
 
     return 0;

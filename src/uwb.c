@@ -56,8 +56,8 @@ int uwb_init()
                    | DWT_INT_RPHE 
                    | DWT_INT_RFCE 
                    | DWT_INT_RFSL 
-                   | DWT_INT_SFDT 
-                   | DWT_INT_ARFE, 1);
+                   | DWT_INT_SFDT, 2);
+
 
     return UWB_SUCCESS;
 }
