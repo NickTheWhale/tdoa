@@ -41,8 +41,7 @@ int tag_loop()
     printk("Listening...\n");
     while (1)
     {
-        k_msleep(10);
-        dwt_isr();
+        k_msleep(1);
     }
 
     return 0;
@@ -57,10 +56,7 @@ int anchor_loop()
         {
             printk("Failed to transmit\n");
         }
-
-        k_msleep(1000);
-        
-        dwt_isr();
+        k_msleep(1);
     }
 
     return 0;

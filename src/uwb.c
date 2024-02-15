@@ -92,6 +92,7 @@ int uwb_transmit(uint8* data, uint16_t length)
 void test_isr(void)
 {
     printk("test isr\n");
+    dwt_isr();
 }
 
 static void rx_ok_callback(const dwt_cb_data_t *cb_data)
