@@ -12,4 +12,9 @@ int uwb_listen();
 int uwb_transmit(uint8* data, uint16_t length);
 void test_isr(void);
 
-#endif //UWB_H 
+extern volatile int rx_ok_callback_count;
+extern volatile int rx_timeout_callback_count;
+extern volatile int rx_error_callback_count;
+extern volatile int tx_done_callback_count;
+
+#endif //UWB_H

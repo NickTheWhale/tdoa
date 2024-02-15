@@ -5,8 +5,9 @@
 #include <zephyr/sys/printk.h>
 #include <zephyr/kernel.h>
 
-int tag_loop();
-int anchor_loop();
+
+extern void tag_thread(void*, void*, void*);
+extern void anchor_thread(void*, void*, void*);
 
 int main(void)
 {
@@ -20,9 +21,9 @@ int main(void)
 
     printk("Initialized uwb\n");
 
-    #if(APP_MODE==0)
+    #if(APP_MODE==TAG_MODE)
     return tag_loop();
-    #else
+    #elif(APP_MODE==ANCHOR_MODE)
     return anchor_loop();
     #endif
     
@@ -41,7 +42,13 @@ int tag_loop()
     printk("Listening...\n");
     while (1)
     {
-        k_msleep(1);
+        uwb_listen();
+        k_msleep(1000);
+        printk("rx ok: %d\nrx timeout: %d\nrx error: %d\ntx done: %d",
+                rx_ok_callback_count,
+                rx_timeout_callback_count,
+                rx_error_callback_count,
+                tx_done_callback_count);
     }
 
     return 0;
@@ -56,7 +63,12 @@ int anchor_loop()
         {
             printk("Failed to transmit\n");
         }
-        k_msleep(1);
+        else
+        {
+            printk("Transmitted\n");
+        }
+
+        k_msleep(2000);
     }
 
     return 0;

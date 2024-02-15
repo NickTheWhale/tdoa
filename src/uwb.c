@@ -10,6 +10,11 @@
 #define TX_ANTENNA_DELAY 16436
 #define RX_ANTENNA_DELAY 16436
 
+volatile int rx_ok_callback_count = 0;
+volatile int rx_timeout_callback_count = 0;
+volatile int rx_error_callback_count = 0;
+volatile int tx_done_callback_count = 0;
+
 static dwt_config_t dwt_config = {
     5,               /* Channel number. */
     DWT_PRF_64M,     /* Pulse repetition frequency. */
@@ -23,6 +28,7 @@ static dwt_config_t dwt_config = {
     (129)            /* SFD timeout (preamble length + 1 + SFD length - PAC size). Used in RX only. */
 };
 
+
 static void rx_ok_callback(const dwt_cb_data_t *cb_data);
 static void rx_timeout_callback(const dwt_cb_data_t *cb_data);
 static void rx_error_callback(const dwt_cb_data_t *cb_data);
@@ -30,6 +36,11 @@ static void tx_done_callback(const dwt_cb_data_t *cb_data);
 
 int uwb_init()
 {
+    rx_ok_callback_count = 0;
+    rx_timeout_callback_count = 0;
+    rx_error_callback_count = 0;
+    tx_done_callback_count = 0;
+
     if (openspi() != DWT_SUCCESS)
     {
         return -1;
@@ -48,16 +59,21 @@ int uwb_init()
 
     port_set_deca_isr(test_isr);
 
-    dwt_setcallbacks(&tx_done_callback, &rx_ok_callback, &rx_timeout_callback, &rx_error_callback);
-    dwt_setinterrupt(DWT_INT_TFRS
-                   | DWT_INT_RFCG
+    dwt_setcallbacks(&tx_done_callback,
+                     &rx_ok_callback,
+                     &rx_timeout_callback,
+                     &rx_error_callback);
+
+    dwt_setinterrupt(DWT_INT_TFRS 
+                   | DWT_INT_RFCG 
                    | DWT_INT_RFTO 
-                   | DWT_INT_RXPTO 
+                   | DWT_INT_RXPTO
                    | DWT_INT_RPHE 
                    | DWT_INT_RFCE 
                    | DWT_INT_RFSL 
-                   | DWT_INT_SFDT, 2);
+                   | DWT_INT_SFDT, 1);
 
+    dwt_setleds(DWT_LEDS_ENABLE);
 
     return UWB_SUCCESS;
 }
@@ -73,7 +89,7 @@ int uwb_listen()
     return UWB_SUCCESS;
 }
 
-int uwb_transmit(uint8* data, uint16_t length)
+int uwb_transmit(uint8 *data, uint16_t length)
 {
     if (dwt_writetxdata(length, data, 0) != DWT_SUCCESS)
     {
@@ -91,26 +107,29 @@ int uwb_transmit(uint8* data, uint16_t length)
 
 void test_isr(void)
 {
-    printk("test isr\n");
     dwt_isr();
 }
 
 static void rx_ok_callback(const dwt_cb_data_t *cb_data)
 {
-    printk("rx ok callback\n");
+    // printk("rx ok callback\n");
+    ++rx_ok_callback_count;
 }
 
 static void rx_timeout_callback(const dwt_cb_data_t *cb_data)
 {
-    printk("rx timeout callback\n");
+    // printk("rx timeout callback\n");
+    ++rx_timeout_callback_count;
 }
 
 static void rx_error_callback(const dwt_cb_data_t *cb_data)
 {
-    printk("rx error callback\n");
+    // printk("rx error callback\n");
+    ++rx_error_callback_count;
 }
 
 static void tx_done_callback(const dwt_cb_data_t *cb_data)
 {
-    printk("tx done callback\n");
+    // printk("tx done callback\n");
+    ++tx_done_callback_count;
 }
