@@ -5,6 +5,9 @@ project(tdoa)
 
 target_sources(app PRIVATE 
     src/main.c
+    src/uwb.c
+    src/uwb_tag.c
+    src/uwb_anchor.c
     
     dw1000/src/deca_device.c
     dw1000/src/deca_mutex.c
@@ -13,7 +16,6 @@ target_sources(app PRIVATE
     dw1000/src/deca_sleep.c
     dw1000/src/deca_spi.c
     dw1000/src/port.c
-    src/uwb.c
 )
 
 target_include_directories(app PRIVATE 

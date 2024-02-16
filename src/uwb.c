@@ -10,11 +10,17 @@
 #define TX_ANTENNA_DELAY 16436
 #define RX_ANTENNA_DELAY 16436
 
-K_SEM_DEFINE(test_isr_sem, 0, 10);
-K_SEM_DEFINE(rx_ok_sem, 0, 10);
-K_SEM_DEFINE(rx_timeout_sem, 0, 10);
-K_SEM_DEFINE(rx_error_sem, 0, 10);
-K_SEM_DEFINE(tx_done_sem, 0, 10);
+extern uwb_algorithm_t uwb_tag_algorithm;
+extern uwb_algorithm_t uwb_anchor_algorithm;
+
+static void dummy_init();
+static void dummy_on_event();
+
+static uwb_algorithm_t dummy_algorithm = {
+    .init = dummy_init,
+    .on_event = dummy_on_event};
+
+static uwb_algorithm_t *algorithm = &dummy_algorithm;
 
 static dwt_config_t dwt_config = {
     5,               /* Channel number. */
@@ -29,11 +35,25 @@ static dwt_config_t dwt_config = {
     (129)            /* SFD timeout (preamble length + 1 + SFD length - PAC size). Used in RX only. */
 };
 
+K_SEM_DEFINE(uwb_isr_sem, 0, 1);
 
+static void uwb_isr(void);
 static void rx_ok_callback(const dwt_cb_data_t *cb_data);
 static void rx_timeout_callback(const dwt_cb_data_t *cb_data);
 static void rx_error_callback(const dwt_cb_data_t *cb_data);
+
 static void tx_done_callback(const dwt_cb_data_t *cb_data);
+
+void uwb_loop(void *, void *, void *)
+{
+    while (1)
+    {
+        if (k_sem_take(&uwb_isr_sem, K_FOREVER) == 0)
+        {
+            dwt_isr();
+        }
+    }
+}
 
 int uwb_init()
 {
@@ -53,21 +73,14 @@ int uwb_init()
     dwt_settxantennadelay(TX_ANTENNA_DELAY);
     dwt_setrxantennadelay(RX_ANTENNA_DELAY);
 
-    port_set_deca_isr(test_isr);
+    port_set_deca_isr(uwb_isr);
 
     dwt_setcallbacks(&tx_done_callback,
                      &rx_ok_callback,
                      &rx_timeout_callback,
                      &rx_error_callback);
 
-    dwt_setinterrupt(DWT_INT_TFRS 
-                   | DWT_INT_RFCG 
-                   | DWT_INT_RFTO 
-                   | DWT_INT_RXPTO
-                   | DWT_INT_RPHE 
-                   | DWT_INT_RFCE 
-                   | DWT_INT_RFSL 
-                   | DWT_INT_SFDT, 1);
+    dwt_setinterrupt(DWT_INT_TFRS | DWT_INT_RFCG | DWT_INT_RFTO | DWT_INT_RXPTO | DWT_INT_RPHE | DWT_INT_RFCE | DWT_INT_RFSL | DWT_INT_SFDT, 1);
 
     dwt_setleds(DWT_LEDS_ENABLE);
 
@@ -101,28 +114,53 @@ int uwb_transmit(uint8 *data, uint16_t length)
     return UWB_SUCCESS;
 }
 
-void test_isr(void)
+void uwb_change_algorithm(enum algorithms_t algo)
 {
-    dwt_isr();
-    k_sem_give(&test_isr_sem);
+    switch (algo)
+    {
+    case TAG_ALGORITHM:
+        algorithm = &uwb_tag_algorithm;
+        break;
+    case ANCHOR_ALGORITHM:
+        algorithm = &uwb_anchor_algorithm;
+        break;
+    case DUMMY_ALGORITHM:
+        algorithm = &uwb_anchor_algorithm;
+        break;
+    }
+}
+
+static void uwb_isr(void)
+{
+    k_sem_give(&uwb_isr_sem);
 }
 
 static void rx_ok_callback(const dwt_cb_data_t *cb_data)
 {
-    k_sem_give(&rx_ok_sem);
+    algorithm->on_event();
 }
 
 static void rx_timeout_callback(const dwt_cb_data_t *cb_data)
 {
-    k_sem_give(&rx_timeout_sem);
+    algorithm->on_event();
 }
 
 static void rx_error_callback(const dwt_cb_data_t *cb_data)
 {
-    k_sem_give(&rx_error_sem);
+    algorithm->on_event();
 }
 
 static void tx_done_callback(const dwt_cb_data_t *cb_data)
 {
-    k_sem_give(&tx_done_sem);
+    algorithm->on_event();
+}
+
+void dummy_init()
+{
+    printk("dummy init\n");
+}
+
+void dummy_on_event()
+{
+    printk("dummy on event\n");
 }
