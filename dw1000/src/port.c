@@ -158,6 +158,8 @@ void port_set_deca_isr(port_deca_isr_t deca_isr)
     gpio_add_callback(gpio_dev, &gpio_cb);
 
     gpio_pin_interrupt_configure(gpio_dev, GPIO_PIN, GPIO_INT_EDGE_RISING);
+
+    
 }
 
 /****************************************************************************//**

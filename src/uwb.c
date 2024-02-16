@@ -10,10 +10,11 @@
 #define TX_ANTENNA_DELAY 16436
 #define RX_ANTENNA_DELAY 16436
 
-volatile int rx_ok_callback_count = 0;
-volatile int rx_timeout_callback_count = 0;
-volatile int rx_error_callback_count = 0;
-volatile int tx_done_callback_count = 0;
+K_SEM_DEFINE(test_isr_sem, 0, 10);
+K_SEM_DEFINE(rx_ok_sem, 0, 10);
+K_SEM_DEFINE(rx_timeout_sem, 0, 10);
+K_SEM_DEFINE(rx_error_sem, 0, 10);
+K_SEM_DEFINE(tx_done_sem, 0, 10);
 
 static dwt_config_t dwt_config = {
     5,               /* Channel number. */
@@ -36,11 +37,6 @@ static void tx_done_callback(const dwt_cb_data_t *cb_data);
 
 int uwb_init()
 {
-    rx_ok_callback_count = 0;
-    rx_timeout_callback_count = 0;
-    rx_error_callback_count = 0;
-    tx_done_callback_count = 0;
-
     if (openspi() != DWT_SUCCESS)
     {
         return -1;
@@ -108,28 +104,25 @@ int uwb_transmit(uint8 *data, uint16_t length)
 void test_isr(void)
 {
     dwt_isr();
+    k_sem_give(&test_isr_sem);
 }
 
 static void rx_ok_callback(const dwt_cb_data_t *cb_data)
 {
-    // printk("rx ok callback\n");
-    ++rx_ok_callback_count;
+    k_sem_give(&rx_ok_sem);
 }
 
 static void rx_timeout_callback(const dwt_cb_data_t *cb_data)
 {
-    // printk("rx timeout callback\n");
-    ++rx_timeout_callback_count;
+    k_sem_give(&rx_timeout_sem);
 }
 
 static void rx_error_callback(const dwt_cb_data_t *cb_data)
 {
-    // printk("rx error callback\n");
-    ++rx_error_callback_count;
+    k_sem_give(&rx_error_sem);
 }
 
 static void tx_done_callback(const dwt_cb_data_t *cb_data)
 {
-    // printk("tx done callback\n");
-    ++tx_done_callback_count;
+    k_sem_give(&tx_done_sem);
 }

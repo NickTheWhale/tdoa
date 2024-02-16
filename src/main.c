@@ -5,9 +5,8 @@
 #include <zephyr/sys/printk.h>
 #include <zephyr/kernel.h>
 
-
-extern void tag_thread(void*, void*, void*);
-extern void anchor_thread(void*, void*, void*);
+int tag_loop();
+int anchor_loop();
 
 int main(void)
 {
@@ -42,13 +41,30 @@ int tag_loop()
     printk("Listening...\n");
     while (1)
     {
-        uwb_listen();
-        k_msleep(1000);
-        printk("rx ok: %d\nrx timeout: %d\nrx error: %d\ntx done: %d",
-                rx_ok_callback_count,
-                rx_timeout_callback_count,
-                rx_error_callback_count,
-                tx_done_callback_count);
+        bool need_to_listen = false;
+        if (k_sem_take(&test_isr_sem, K_MSEC(50)) == 0)
+        {
+            printk("got test isr\n");
+        }
+        if (k_sem_take(&rx_ok_sem, K_MSEC(50)) == 0)
+        {
+            printk("got rx ok\n");
+            uwb_listen();
+        }
+        if (k_sem_take(&rx_timeout_sem, K_MSEC(50)) == 0)
+        {
+            printk("got rx timeout\n");
+            uwb_listen();
+        }
+        if (k_sem_take(&rx_error_sem, K_MSEC(50)) == 0)
+        {
+            printk("got rx error\n");
+            uwb_listen();
+        }
+        if (k_sem_take(&tx_done_sem, K_MSEC(50)) == 0)
+        {
+            printk("got tx done\n");
+        }
     }
 
     return 0;
@@ -68,7 +84,7 @@ int anchor_loop()
             printk("Transmitted\n");
         }
 
-        k_msleep(2000);
+        k_msleep(3000);
     }
 
     return 0;
