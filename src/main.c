@@ -36,7 +36,6 @@ int main(void)
         LOG_ERR("Failed to read config");
         return -2;
     }
-    LOG_DBG("Read config mode: %d", read_config.mode);
 
     if (uwb_init(&config) != 0)
     {
