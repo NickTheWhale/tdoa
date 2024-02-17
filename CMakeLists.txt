@@ -8,7 +8,8 @@ target_sources(app PRIVATE
     src/uwb.c
     src/uwb_tag.c
     src/uwb_anchor.c
-    
+    src/config.c
+
     dw1000/src/deca_device.c
     dw1000/src/deca_mutex.c
     dw1000/src/deca_params_init.c

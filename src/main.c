@@ -1,98 +1,57 @@
-
+#include "config.h"
 #include "deca_device_api.h"
 #include "uwb.h"
 
-#include <zephyr/kernel.h>
-#include <zephyr/sys/printk.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/shell/shell.h>
 
-#define THREAD_START_DELAY 1000
-#define THREAD_PRIORITY 7
-#define THREAD_STACK_SIZE 500
+LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
-#if (APP_MODE == TAG_MODE)
-void tag_thread(void *, void *, void *);
+static int algorithm_cmd_handler(const struct shell *sh,
+                                 size_t argc,
+                                 char **argv,
+                                 void *data);
 
-K_THREAD_DEFINE(tag_thread_id,
-                THREAD_STACK_SIZE,
-                tag_thread,
-                NULL, NULL, NULL,
-                THREAD_PRIORITY, 0,
-                THREAD_START_DELAY);
+SHELL_SUBCMD_DICT_SET_CREATE(sub_algorithm,
+                                algorithm_cmd_handler,
+                                (tag, TAG, "Switch to 'tag' mode"),
+                                (anchor, ANCHOR, "Switch to 'anchor' mode"));
 
-#elif (APP_MODE == ANCHOR_MODE)
-void anchor_thread(void *, void *, void *);
+SHELL_CMD_REGISTER(algorithm, &sub_algorithm, "Change UWB algorithm settings", NULL);
 
-K_THREAD_DEFINE(anchor_thread_id,
-                THREAD_STACK_SIZE,
-                anchor_thread,
-                NULL, NULL, NULL,
-                THREAD_PRIORITY, 0,
-                THREAD_START_DELAY);
-#endif
-
-void dwt_isr_thread(void *, void *, void *);
-K_THREAD_DEFINE(dwt_isr_thread_id,
-                THREAD_STACK_SIZE,
-                dwt_isr_thread,
-                NULL, NULL, NULL,
-                THREAD_PRIORITY, 0, 
-                THREAD_START_DELAY);
+static struct config_t config;
 
 int main(void)
 {
-    int ret = uwb_init();
-    if (ret != UWB_SUCCESS)
+    k_msleep(500);
+    if (config_init() != 0)
     {
-        printk("Failed to intialize uwb: %d\n", ret);
+        LOG_ERR("Failed to initialze config");
         return -1;
     }
+    LOG_DBG("Initialized config");
 
-    printk("Initialized\n");
+    if (config_read(&config) != 0)
+    {
+        LOG_ERR("Failed to read config");
+        return -2;
+    }
+    LOG_DBG("Read config mode: %d", read_config.mode);
+
+    if (uwb_init(&config) != 0)
+    {
+        LOG_ERR("Failed to initalize uwb");
+        return -3;
+    }
+    LOG_DBG("Initialized uwb");
+
+    uwb_start();
 
     return 0;
 }
 
-void tag_thread(void *, void *, void *)
+int algorithm_cmd_handler(const struct shell *sh, size_t argc, char **argv, void *data)
 {
-    int ret = uwb_listen();
-    if (ret != UWB_SUCCESS)
-    {
-        printk("Failed to start uwb listen\n");
-        return;
-    }
 
-    printk("Listening...\n");
-
-    while (1)
-    {
-    }
-}
-
-void anchor_thread(void *, void *, void *)
-{
-    uint8 data[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-    while (1)
-    {
-        if (uwb_transmit(data, 10) != UWB_SUCCESS)
-        {
-            printk("Failed to transmit\n");
-        }
-        else
-        {
-            printk("Transmitted\n");
-        }
-
-        k_msleep(1000);
-    }
-}
-
-void dwt_isr_thread(void *, void *, void *)
-{
-    while (1)
-    {
-        if (k_sem_take(&uwb_isr_sem, K_MSEC(50)) == 0)
-        {
-            dwt_isr();
-        }
-    }
+    return 0;
 }

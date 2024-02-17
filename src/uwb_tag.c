@@ -1,13 +1,17 @@
 #include "uwb.h"
 
+#include <zephyr/logging/log.h>
+
+LOG_MODULE_REGISTER(tag, LOG_LEVEL_DBG);
+
 static void tag_init(void)
 {
-    printk("tag init\n");
+    LOG_DBG("Tag init");
 }
 
 static void tag_on_event(void)   
 {
-    printk("tag on event\n");
+    LOG_DBG("Tag on event");
 }
 
 uwb_algorithm_t uwb_tag_algorithm = {

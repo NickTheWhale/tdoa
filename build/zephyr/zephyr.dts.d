@@ -1,0 +1,22 @@
+empty_file.o: \
+ C:/Users/nicholas/repos/tdoa/external/zephyr/misc/empty_file.c \
+ C:/Users/nicholas/repos/tdoa/external/zephyr/boards/arm/decawave_dwm1001_dev/decawave_dwm1001_dev.dts \
+ C:/Users/nicholas/repos/tdoa/external/zephyr/dts/arm/nordic/nrf52832_qfaa.dtsi \
+ C:/Users/nicholas/repos/tdoa/external/zephyr/dts/common/mem.h \
+ C:/Users/nicholas/repos/tdoa/external/zephyr/dts/arm/nordic/nrf52832.dtsi \
+ C:/Users/nicholas/repos/tdoa/external/zephyr/dts/arm/armv7-m.dtsi \
+ C:/Users/nicholas/repos/tdoa/external/zephyr/dts/common/skeleton.dtsi \
+ C:/Users/nicholas/repos/tdoa/external/zephyr/dts/arm/nordic/nrf_common.dtsi \
+ C:/Users/nicholas/repos/tdoa/external/zephyr/include/zephyr/dt-bindings/adc/adc.h \
+ C:/Users/nicholas/repos/tdoa/external/zephyr/include/zephyr/dt-bindings/adc/nrf-adc.h \
+ C:/Users/nicholas/repos/tdoa/external/zephyr/include/zephyr/dt-bindings/dt-util.h \
+ C:/Users/nicholas/repos/tdoa/external/zephyr/include/zephyr/sys/util_macro.h \
+ C:/Users/nicholas/repos/tdoa/external/zephyr/include/zephyr/sys/util_internal.h \
+ C:/Users/nicholas/repos/tdoa/external/zephyr/include/zephyr/sys/util_loops.h \
+ C:/Users/nicholas/repos/tdoa/external/zephyr/include/zephyr/dt-bindings/gpio/gpio.h \
+ C:/Users/nicholas/repos/tdoa/external/zephyr/include/zephyr/dt-bindings/i2c/i2c.h \
+ C:/Users/nicholas/repos/tdoa/external/zephyr/include/zephyr/dt-bindings/pinctrl/nrf-pinctrl.h \
+ C:/Users/nicholas/repos/tdoa/external/zephyr/include/zephyr/dt-bindings/pwm/pwm.h \
+ C:/Users/nicholas/repos/tdoa/external/zephyr/dts/common/freq.h \
+ C:/Users/nicholas/repos/tdoa/external/zephyr/dts/arm/nordic/override.dtsi \
+ C:/Users/nicholas/repos/tdoa/external/zephyr/boards/arm/decawave_dwm1001_dev/decawave_dwm1001_dev-pinctrl.dtsi

@@ -5,13 +5,33 @@
 #include "deca_spi.h"
 #include "port.h"
 
-#include <zephyr/sys/printk.h>
+#include <zephyr/kernel.h>
+#include <zephyr/kernel/thread.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/sys/sem.h>
+
+LOG_MODULE_REGISTER(uwb, LOG_LEVEL_DBG);
+
+#define UWB_STACK_SIZE 500
+#define UWB_PRIORITY 5
+
+K_THREAD_STACK_DEFINE(uwb_stack_area, UWB_STACK_SIZE);
 
 #define TX_ANTENNA_DELAY 16436
 #define RX_ANTENNA_DELAY 16436
 
 extern uwb_algorithm_t uwb_tag_algorithm;
 extern uwb_algorithm_t uwb_anchor_algorithm;
+
+struct
+{
+    uwb_algorithm_t *algorithm;
+    char *name;
+} uwb_available_algorithms[] = {
+    {.algorithm = &uwb_tag_algorithm, .name = "Tag"},
+    {.algorithm = &uwb_anchor_algorithm, .name = "Anchor"},
+    {NULL, NULL},
+};
 
 static void dummy_init();
 static void dummy_on_event();
@@ -35,35 +55,26 @@ static dwt_config_t dwt_config = {
     (129)            /* SFD timeout (preamble length + 1 + SFD length - PAC size). Used in RX only. */
 };
 
-K_SEM_DEFINE(uwb_isr_sem, 0, 1);
+K_SEM_DEFINE(uwb_irq_sem, 0, 1);
 
 static void uwb_isr(void);
 static void rx_ok_callback(const dwt_cb_data_t *cb_data);
 static void rx_timeout_callback(const dwt_cb_data_t *cb_data);
 static void rx_error_callback(const dwt_cb_data_t *cb_data);
-
 static void tx_done_callback(const dwt_cb_data_t *cb_data);
+static void uwb_loop(void *, void *, void *);
 
-void uwb_loop(void *, void *, void *)
-{
-    while (1)
-    {
-        if (k_sem_take(&uwb_isr_sem, K_FOREVER) == 0)
-        {
-            dwt_isr();
-        }
-    }
-}
-
-int uwb_init()
+int uwb_init(struct config_t *config)
 {
     if (openspi() != DWT_SUCCESS)
     {
+        LOG_ERR("Failed to open spi");
         return -1;
     }
     port_set_dw1000_slowrate();
     if (dwt_initialise(DWT_LOADUCODE) != DWT_SUCCESS)
     {
+        LOG_ERR("Failed to initialize deca");
         return -2;
     }
     port_set_dw1000_fastrate();
@@ -84,55 +95,65 @@ int uwb_init()
 
     dwt_setleds(DWT_LEDS_ENABLE);
 
-    return UWB_SUCCESS;
+    return 0;
 }
 
-int uwb_listen()
+void uwb_start()
 {
-    dwt_setrxtimeout(0);
-    if (dwt_rxenable(DWT_START_RX_IMMEDIATE) != DWT_SUCCESS)
-    {
-        return -1;
-    }
+    algorithm->init();
 
-    return UWB_SUCCESS;
+    struct k_thread uwb_thread;
+    k_thread_create(&uwb_thread, uwb_stack_area,
+                    K_THREAD_STACK_SIZEOF(uwb_stack_area),
+                    uwb_loop,
+                    NULL, NULL, NULL,
+                    UWB_PRIORITY, 0, K_NO_WAIT);
 }
 
-int uwb_transmit(uint8 *data, uint16_t length)
+int uwb_switch_mode(enum uwb_mode_t mode)
 {
-    if (dwt_writetxdata(length, data, 0) != DWT_SUCCESS)
+    if (mode < uwb_mode_count())
     {
-        return -1;
-    }
-    dwt_writetxfctrl(length, 0, 0);
-
-    if (dwt_starttx(DWT_START_TX_IMMEDIATE) != DWT_SUCCESS)
-    {
-        return -2;
+        algorithm = uwb_available_algorithms[mode].algorithm;
+        return 0;
     }
 
-    return UWB_SUCCESS;
+    return -1;
 }
 
-void uwb_change_algorithm(enum algorithms_t algo)
+int uwb_mode_count()
 {
-    switch (algo)
+    return NUMBER_OF_MODES;
+}
+
+char *uwb_mode_name(enum uwb_mode_t mode)
+{
+    if (mode < uwb_mode_count())
     {
-    case TAG_ALGORITHM:
-        algorithm = &uwb_tag_algorithm;
-        break;
-    case ANCHOR_ALGORITHM:
-        algorithm = &uwb_anchor_algorithm;
-        break;
-    case DUMMY_ALGORITHM:
-        algorithm = &uwb_anchor_algorithm;
-        break;
+        return uwb_available_algorithms[mode].name;
+    }
+    else
+    {
+        return "UNKOWN";
+    }
+}
+
+static void uwb_loop(void *, void *, void *)
+{
+    while (1)
+    {
+        if (k_sem_take(&uwb_irq_sem, K_MSEC(50)) == 0)
+        {
+            dwt_isr();
+        }
+        k_msleep(1000);
+        LOG_DBG("uwb loop");
     }
 }
 
 static void uwb_isr(void)
 {
-    k_sem_give(&uwb_isr_sem);
+    k_sem_give(&uwb_irq_sem);
 }
 
 static void rx_ok_callback(const dwt_cb_data_t *cb_data)
@@ -157,10 +178,10 @@ static void tx_done_callback(const dwt_cb_data_t *cb_data)
 
 void dummy_init()
 {
-    printk("dummy init\n");
+    LOG_DBG("Dummy init");
 }
 
 void dummy_on_event()
 {
-    printk("dummy on event\n");
+    LOG_DBG("Dummy on event");
 }
