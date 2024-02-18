@@ -30,7 +30,7 @@ struct
 } uwb_available_algorithms[] = {
     {.algorithm = &uwb_tag_algorithm, .name = "Tag"},
     {.algorithm = &uwb_anchor_algorithm, .name = "Anchor"},
-    {NULL, NULL},
+    {NULL, NULL}
 };
 
 static void dummy_init();

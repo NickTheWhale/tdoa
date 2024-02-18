@@ -9,9 +9,6 @@ struct config_t
 };
 
 int config_init();
-int config_read(struct config_t *config);
-int config_save(struct config_t* config);
-int config_clear();
 
 #endif // CONFIG_H
 

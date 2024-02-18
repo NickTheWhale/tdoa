@@ -7,17 +7,17 @@
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
-static int algorithm_cmd_handler(const struct shell *sh,
+static int mode_cmd_handler(const struct shell *sh,
                                  size_t argc,
                                  char **argv,
                                  void *data);
 
-SHELL_SUBCMD_DICT_SET_CREATE(sub_algorithm,
-                                algorithm_cmd_handler,
+SHELL_SUBCMD_DICT_SET_CREATE(sub_mode,
+                                mode_cmd_handler,
                                 (tag, TAG, "Switch to 'tag' mode"),
                                 (anchor, ANCHOR, "Switch to 'anchor' mode"));
 
-SHELL_CMD_REGISTER(algorithm, &sub_algorithm, "Change UWB algorithm settings", NULL);
+SHELL_CMD_REGISTER(mode, &sub_mode, "Change UWB algorithm settings", NULL);
 
 static struct config_t config;
 
@@ -51,6 +51,6 @@ int main(void)
 
 int algorithm_cmd_handler(const struct shell *sh, size_t argc, char **argv, void *data)
 {
-
+    
     return 0;
 }
