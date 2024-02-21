@@ -14,9 +14,9 @@ static int algorithm_cmd_handler(const struct shell *sh,
                                  void *data);
 
 SHELL_SUBCMD_DICT_SET_CREATE(sub_mode,
-                                algorithm_cmd_handler,
-                                (tag, TAG, "Switch to 'tag' mode"),
-                                (anchor, ANCHOR, "Switch to 'anchor' mode"));
+                             algorithm_cmd_handler,
+                             (tag, TAG, "Switch to 'tag' mode"),
+                             (anchor, ANCHOR, "Switch to 'anchor' mode"));
 
 SHELL_CMD_REGISTER(mode, &sub_mode, "Change UWB algorithm settings", NULL);
 
@@ -43,7 +43,10 @@ int main(void)
     return 0;
 }
 
-static int algorithm_cmd_handler(const struct shell *sh, size_t argc, char **argv, void *data)
+static int algorithm_cmd_handler(const struct shell *sh,
+                                 size_t argc,
+                                 char **argv,
+                                 void *data)
 {
     return 0;
 }

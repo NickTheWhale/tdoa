@@ -102,12 +102,15 @@ static int flash_init()
         LOG_ERR("Failed to mount flash");
         return -3;
     }
+
+    return 0;
 }
 
 static bool read_data()
 {
     if (nvs_read(&fs, CONFIG_ID, &buffer, SIZE_READ) == 0)
     {
+        LOG_ERR("Failed to read flash data");
         return false;
     }
 
@@ -119,10 +122,10 @@ static bool check_data()
     if (!check_magic() || header->data_length >= (SIZE_READ - SIZE_HEADER))
     {
         LOG_ERR("Magic not found");
-        return check_crc();
+        return false;
     }
 
-    return false;
+    return check_crc();
 }
 
 static bool check_magic()
