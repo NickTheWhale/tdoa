@@ -29,28 +29,28 @@ LOG_MODULE_REGISTER(config, LOG_LEVEL_DBG);
 #define OFFSET_MINOR_VERSION 3
 #define OFFSET_DATA_LENGTH 4
 
-#define DELAY_MS 200
-
-typedef struct __packed 
+typedef struct __packed
 {
     uint16_t magic;
     uint8_t major_version;
     uint8_t minor_version;
-    uint16_t data_length;
+    uint16_t tlv_length;
 } config_header_t;
 
 static uint8_t _buffer[SIZE_READ];
 static config_header_t *header = (config_header_t *)_buffer;
+static uint8_t *tlv = &_buffer[SIZE_HEADER];
 
 static struct nvs_fs fs;
 
 static int flash_init();
-static int read_data();
+static int read_buffer();
 static int check_data();
 static int check_magic();
 static int write_defaults();
 static int check_crc();
-void config_log_buffer();
+static void write_crc();
+static int find_field(config_field_t field);
 
 int config_init()
 {
@@ -63,15 +63,13 @@ int config_init()
         return -1;
     }
 
-    k_msleep(DELAY_MS);
-    ret = read_data();
+    ret = read_buffer();
     if (ret != 0)
     {
         LOG_ERR("Failed to read flash data: %d", ret);
         return -2;
     }
 
-    k_msleep(DELAY_MS);
     ret = check_data();
     if (ret == 0)
     {
@@ -80,7 +78,6 @@ int config_init()
     else
     {
         ret = write_defaults();
-        k_msleep(DELAY_MS);
         if (ret != 0)
         {
             LOG_ERR("Failed to write default config to flash: %d", ret);
@@ -138,7 +135,7 @@ static int flash_init()
     return 0;
 }
 
-static int read_data()
+static int read_buffer()
 {
     int ret;
     ret = nvs_read(&fs, CONFIG_NVS_ID, &_buffer, SIZE_READ);
@@ -157,8 +154,8 @@ static int check_data()
         LOG_ERR("Magic not found");
         return -1;
     }
-    
-    if (header->data_length >= (SIZE_READ - SIZE_HEADER))
+
+    if (header->tlv_length >= (SIZE_READ - SIZE_HEADER))
     {
         LOG_ERR("Data length mismatch");
         return -2;
@@ -187,17 +184,14 @@ static int write_defaults()
     _buffer[OFFSET_MAJOR_VERSION] = VERSION_MAJOR;
     _buffer[OFFSET_MINOR_VERSION] = VERSION_MINOR;
 
-    const size_t total_length = SIZE_HEADER + header->data_length;
-    uint32_t checksum = crc32_ieee(_buffer, total_length);
-
-    memcpy(&_buffer[SIZE_HEADER + header->data_length], &checksum, sizeof(uint32_t));
+    write_crc();
 
     if (nvs_write(&fs, CONFIG_NVS_ID, &_buffer, SIZE_READ) < 0)
     {
         return -1;
     }
 
-    if (read_data() != 0)
+    if (read_buffer() != 0)
     {
         return -2;
     }
@@ -212,9 +206,9 @@ static int write_defaults()
 
 static int check_crc()
 {
-    const int total_length = SIZE_HEADER + header->data_length;
+    const int total_length = SIZE_HEADER + header->tlv_length;
     uint32_t buffer_checksum;
-    memcpy(&buffer_checksum, &_buffer[SIZE_HEADER + header->data_length], sizeof(uint32_t));
+    memcpy(&buffer_checksum, &_buffer[SIZE_HEADER + header->tlv_length], sizeof(uint32_t));
     uint32_t checksum = crc32_ieee(_buffer, total_length);
 
     if (buffer_checksum != checksum)
@@ -226,8 +220,79 @@ static int check_crc()
     return 0;
 }
 
-void config_buffer(uint8_t* buffer, size_t size)
+static void write_crc()
+{
+    uint32_t checksum = crc32_ieee(_buffer, SIZE_HEADER + header->tlv_length);
+    memcpy(&_buffer[SIZE_HEADER + header->tlv_length], &checksum, sizeof(uint32_t));
+}
+
+static int find_field(config_field_t field)
+{
+    uint16_t pos = 0;
+    while (pos < header->tlv_length)
+    {
+        if (tlv[pos] == field)
+        {
+            return pos;
+        }
+
+        pos += tlv[pos + 1] + 2;
+    }
+
+    return -1;
+}
+
+void config_buffer(uint8_t *buffer, size_t size)
 {
     size_t read_size = MIN(size, SIZE_READ);
     memcpy(buffer, &_buffer, read_size);
+}
+
+int config_read_u8(config_field_t field, uint8_t *value)
+{
+    int pos = find_field(field);
+    if (pos < 0)
+    {
+        return -1;
+    }
+    *value = tlv[pos + 2];
+
+    return 0;
+}
+
+int config_write_u8(config_field_t field, uint8_t value)
+{
+    int pos = find_field(field);
+    bool need_to_write = false;
+    if (pos > -1)
+    {
+        if (tlv[pos + 2] != value)
+        {
+            tlv[pos + 2] = value;
+            need_to_write = true;
+        }
+    }
+    else
+    {
+        tlv[header->tlv_length] = field;
+        tlv[header->tlv_length + 1] = 1;
+        tlv[header->tlv_length + 2] = value;
+        header->tlv_length += 3;
+
+        need_to_write = true;
+    }
+
+    write_crc();
+
+    if (need_to_write && nvs_write(&fs, CONFIG_NVS_ID, &_buffer, SIZE_READ) < 0)
+    {
+        return -1;
+    }
+
+    if (read_buffer() != 0)
+    {
+        return -2;
+    }
+
+    return 0;
 }

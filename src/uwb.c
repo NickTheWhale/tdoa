@@ -144,7 +144,8 @@ static void uwb_loop(void *, void *, void *)
         {
             dwt_isr();
         }
-        k_msleep(1);
+
+        k_msleep(1000);
         // LOG_DBG("uwb loop");
     }
 }
