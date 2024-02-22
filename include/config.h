@@ -2,13 +2,16 @@
 #define CONFIG_H
 
 #include <stdint.h>
+#include <stddef.h>
 
-struct config_t
+typedef struct
 {
     uint8_t mode;
-};
+} config_t;
 
 int config_init();
+int config_clear();
+void config_buffer(uint8_t* buffer, size_t size);
 
 #endif // CONFIG_H
 

@@ -64,7 +64,7 @@ static void rx_error_callback(const dwt_cb_data_t *cb_data);
 static void tx_done_callback(const dwt_cb_data_t *cb_data);
 static void uwb_loop(void *, void *, void *);
 
-int uwb_init(struct config_t *config)
+int uwb_init(config_t *config)
 {
     if (openspi() != DWT_SUCCESS)
     {
@@ -110,7 +110,7 @@ void uwb_start()
                     UWB_PRIORITY, 0, K_NO_WAIT);
 }
 
-int uwb_switch_mode(enum uwb_mode_t mode)
+int uwb_switch_mode(uwb_mode_t mode)
 {
     if (mode < uwb_mode_count())
     {
@@ -126,16 +126,14 @@ int uwb_mode_count()
     return NUMBER_OF_MODES;
 }
 
-char *uwb_mode_name(enum uwb_mode_t mode)
+char *uwb_mode_name(uwb_mode_t mode)
 {
-    if (mode < uwb_mode_count())
+    if (mode >= uwb_mode_count())
     {
-        return uwb_available_algorithms[mode].name;
+        return "UNKNOWN";
     }
-    else
-    {
-        return "UNKOWN";
-    }
+
+    return uwb_available_algorithms[mode].name;
 }
 
 static void uwb_loop(void *, void *, void *)
@@ -146,8 +144,8 @@ static void uwb_loop(void *, void *, void *)
         {
             dwt_isr();
         }
-        k_msleep(1000);
-        LOG_DBG("uwb loop");
+        k_msleep(1);
+        // LOG_DBG("uwb loop");
     }
 }
 
