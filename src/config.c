@@ -20,14 +20,17 @@ LOG_MODULE_REGISTER(config, LOG_LEVEL_DBG);
 #define VERSION_MAJOR 1
 #define VERSION_MINOR 0
 
-#define SIZE_READ 1024
+#define SIZE_READ (CONFIG_SIZE_BUFFER)
 #define SIZE_HEADER 6
 #define SIZE_TAIL 4
+#define SIZE_TLV_MAX (SIZE_READ - SIZE_HEADER)
 
 #define OFFSET_MAGIC 0
 #define OFFSET_MAJOR_VERSION 2
 #define OFFSET_MINOR_VERSION 3
 #define OFFSET_DATA_LENGTH 4
+
+#define CONFIG_READ_DELAY 200
 
 typedef struct __packed
 {
@@ -37,9 +40,14 @@ typedef struct __packed
     uint16_t tlv_length;
 } config_header_t;
 
+typedef struct 
+{
+    uint8_t* data;
+} tlv_t;
+
 static uint8_t _buffer[SIZE_READ];
 static config_header_t *header = (config_header_t *)_buffer;
-static uint8_t *tlv = &_buffer[SIZE_HEADER];
+static tlv_t tlv;
 
 static struct nvs_fs fs;
 
@@ -51,6 +59,8 @@ static int write_defaults();
 static int check_crc();
 static void write_crc();
 static int find_field(config_field_t field);
+static int read_un(config_field_t field, size_t size, void *value);
+static int write_un(config_field_t field, size_t size, void *value);
 
 int config_init()
 {
@@ -63,12 +73,15 @@ int config_init()
         return -1;
     }
 
+    k_msleep(CONFIG_READ_DELAY);
     ret = read_buffer();
     if (ret != 0)
     {
         LOG_ERR("Failed to read flash data: %d", ret);
         return -2;
     }
+
+    tlv.data = &_buffer[SIZE_HEADER];
 
     ret = check_data();
     if (ret == 0)
@@ -123,6 +136,7 @@ static int flash_init()
     }
 
     int dummy_buffer[1];
+    k_msleep(CONFIG_READ_DELAY);
     if (nvs_read(&fs, CONFIG_NVS_ID, &dummy_buffer, sizeof(dummy_buffer)) < 0)
     {
         if (nvs_write(&fs, CONFIG_NVS_ID, &dummy_buffer, sizeof(dummy_buffer)) < 0)
@@ -191,6 +205,7 @@ static int write_defaults()
         return -1;
     }
 
+    k_msleep(CONFIG_READ_DELAY);
     if (read_buffer() != 0)
     {
         return -2;
@@ -231,12 +246,12 @@ static int find_field(config_field_t field)
     uint16_t pos = 0;
     while (pos < header->tlv_length)
     {
-        if (tlv[pos] == field)
+        if (tlv.data[pos] == field)
         {
             return pos;
         }
 
-        pos += tlv[pos + 1] + 2;
+        pos += tlv.data[pos + 1] + 2;
     }
 
     return -1;
@@ -248,51 +263,118 @@ void config_buffer(uint8_t *buffer, size_t size)
     memcpy(buffer, &_buffer, read_size);
 }
 
-int config_read_u8(config_field_t field, uint8_t *value)
+int config_refresh()
+{
+    k_msleep(CONFIG_READ_DELAY);
+    if (read_buffer() != 0)
+    {
+        LOG_ERR("Failed to refresh config");
+        return -1;
+    }
+
+    return 0;
+}
+
+int read_un(config_field_t field, size_t size, void *value)
 {
     int pos = find_field(field);
     if (pos < 0)
     {
         return -1;
     }
-    *value = tlv[pos + 2];
+    if (pos + 2 + size >= (SIZE_TLV_MAX))
+    {
+        LOG_ERR("Field size exceeds maximum TLV length");
+        return -2;
+    }
+
+    memcpy(value, &_buffer[pos + 2], size);
 
     return 0;
 }
 
-int config_write_u8(config_field_t field, uint8_t value)
+int write_un(config_field_t field, size_t size, void *value)
 {
-    int pos = find_field(field);
+    if (header->tlv_length + 2 + size >= SIZE_TLV_MAX)
+    {
+        LOG_ERR("Cannot add value to flash, not enough space");
+        return -1;
+    }
+
     bool need_to_write = false;
+    int pos = find_field(field);
     if (pos > -1)
     {
-        if (tlv[pos + 2] != value)
+        if (pos + 2 + size >= (SIZE_TLV_MAX))
         {
-            tlv[pos + 2] = value;
+            LOG_ERR("Cannot add value to flash, not enough space");
+            return -2;
+        }
+        if (memcmp(&tlv.data[pos + 2], value, size) != 0)
+        {
+            memcpy(&tlv.data[pos + 2], value, size);
             need_to_write = true;
         }
     }
     else
     {
-        tlv[header->tlv_length] = field;
-        tlv[header->tlv_length + 1] = 1;
-        tlv[header->tlv_length + 2] = value;
-        header->tlv_length += 3;
+        if (header->tlv_length + 2 + size >= SIZE_TLV_MAX)
+        {
+            LOG_ERR("Cannot add value to flash, not enough space");
+            return -3;
+        }
+        tlv.data[header->tlv_length] = field;
+        memcpy(&tlv.data[header->tlv_length + 1], &size, size);
+        memcpy(&tlv.data[header->tlv_length + 2], value, size);
+        header->tlv_length += 2 + size;
 
         need_to_write = true;
     }
 
     write_crc();
-
-    if (need_to_write && nvs_write(&fs, CONFIG_NVS_ID, &_buffer, SIZE_READ) < 0)
+    ssize_t bytes_written = nvs_write(&fs, CONFIG_NVS_ID, &_buffer, SIZE_READ);
+    if (need_to_write && bytes_written < 0)
     {
-        return -1;
+        LOG_ERR("Failed to write value to flash");
+        return -4;
     }
 
+    k_msleep(CONFIG_READ_DELAY);
     if (read_buffer() != 0)
     {
-        return -2;
+        LOG_ERR("Failed to re-read buffer after write");
+        return -5;
     }
 
     return 0;
+}
+
+int config_read_u8(config_field_t field, uint8_t *value)
+{
+    return read_un(field, sizeof(uint8_t), value);
+}
+
+int config_read_u16(config_field_t field, uint16_t *value)
+{
+    return read_un(field, sizeof(uint16_t), value);
+}
+
+int config_read_u32(config_field_t field, uint32_t *value)
+{
+    return read_un(field, sizeof(uint32_t), value);
+}
+
+int config_write_u8(config_field_t field, uint8_t value)
+{
+    return write_un(field, sizeof(uint8_t), &value);
+}
+
+int config_write_u16(config_field_t field, uint16_t value)
+{
+    return write_un(field, sizeof(uint16_t), &value);
+}
+
+int config_write_u32(config_field_t field, uint32_t value)
+{    
+    return write_un(field, sizeof(uint32_t), &value);
 }
