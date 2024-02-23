@@ -13,7 +13,7 @@ static config_t config;
 int main(void)
 {
     k_msleep(1000); // wait for shell to startup
-    
+
     int ret;
     ret = config_init();
     if (ret != 0)
@@ -24,14 +24,19 @@ int main(void)
 
     // testing config
 
-    for (int i = 0; i < 42; ++i)
+    #define TEST_ARRAY_SIZE 5
+    uint8_t array[TEST_ARRAY_SIZE] = {0, 1, 2, 3, 4};
+    ret = config_write_u8_array(CONFIG_FIELD_TEST_1, TEST_ARRAY_SIZE, array);
+    if (ret <= 0)
     {
-        if (config_write_u8(i, (char)i) != 0)
+        if (ret < 0)
         {
-            LOG_DBG("Failed to write: %d", i);
+            LOG_ERR("Failed to write array: %d", ret);
+            return -2;
         }
     }
 
+    LOG_INF("Wrote to array: %d", ret);
 
     // end testing config
 
