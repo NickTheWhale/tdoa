@@ -23,7 +23,7 @@ LOG_MODULE_REGISTER(config, LOG_LEVEL_DBG);
 #define SIZE_READ (CONFIG_SIZE_BUFFER)
 #define SIZE_HEADER 6
 #define SIZE_TAIL 4
-#define SIZE_TLV_MAX (SIZE_READ - SIZE_HEADER)
+#define SIZE_TLV_MAX (SIZE_READ - SIZE_HEADER - SIZE_TAIL)
 
 #define OFFSET_MAGIC 0
 #define OFFSET_MAJOR_VERSION 2
@@ -61,6 +61,8 @@ static void write_crc();
 static int find_field(config_field_t field);
 static int read_un(config_field_t field, uint8_t size, void *value);
 static int write_un(config_field_t field, uint8_t size, void *value);
+static int insert_existing_un(uint8_t field_pos, config_field_t field, uint8_t size, void *value);
+static int insert_new_un(uint8_t field_pos, config_field_t field, uint8_t size, void *value);
 
 int config_init()
 {
@@ -315,36 +317,21 @@ int write_un(config_field_t field, uint8_t size, void *value)
     }
 
     bool need_to_write = false;
+    int bytes_inserted = -1;
     int pos = find_field(field);
-    if (pos > -1)
+    if (pos > -1) // field exists, so update the value
     {
-        if (pos + 2 + size >= (SIZE_TLV_MAX))
-        {
-            LOG_ERR("Cannot add value to flash, not enough space");
-            return -2;
-        }
-        if (memcmp(&tlv.data[pos + 2], value, size) != 0 || tlv.data[pos + 1] != size)
-        {
-            memcpy(&tlv.data[pos + 2], value, size);
-            // TODO update header length properly
-            header->tlv_length -= tlv.data[pos + 1] - 2;
-            header->tlv_length += 2 + size;
-            need_to_write = true;
-        }
+        bytes_inserted = insert_existing_un(pos, field, size, value);
     }
     else
     {
-        if (header->tlv_length + 2 + size >= SIZE_TLV_MAX)
-        {
-            LOG_ERR("Cannot add value to flash, not enough space");
-            return -3;
-        }
-        tlv.data[header->tlv_length] = field;
-        tlv.data[header->tlv_length + 1] = size;
-        memcpy(&tlv.data[header->tlv_length + 2], value, size);
-        header->tlv_length += 2 + size;
+        bytes_inserted = insert_new_un(pos, field, size, value);
+    }
 
-        need_to_write = true;
+    if (bytes_inserted < 0)
+    {
+        LOG_ERR("Failed to insert value into buffer");
+        return -2;
     }
 
     ssize_t bytes_written = 0;
@@ -355,7 +342,7 @@ int write_un(config_field_t field, uint8_t size, void *value)
         if (bytes_written < 0)
         {
             LOG_ERR("Failed to write value to flash");
-            return -4;
+            return -3;
         }
     }
 
@@ -363,11 +350,57 @@ int write_un(config_field_t field, uint8_t size, void *value)
     if (read_buffer() != 0)
     {
         LOG_ERR("Failed to re-read buffer after write");
-        return -5;
+        return -4;
     }
 
     return bytes_written;
 }
+
+static int insert_existing_un(uint8_t field_pos, config_field_t field, uint8_t size, void *value)
+{
+    if (field_pos + )
+
+
+
+
+    bool need_to_write = false;
+    if (pos + 2 + size >= (SIZE_TLV_MAX))
+    {
+        LOG_ERR("Cannot add value to flash, not enough space");
+        return -2;
+    }
+
+    uint8_t old_size = tlv.data[pos + 1];
+    if (memcmp(&tlv.data[pos + 2], value, size) != 0 || old_size != size)
+    {
+        if (size != old_size)
+        {
+            memmove(&tlv.data[pos + 2 + size], &tlv.data[pos + 2 + old_size], header->tlv_length - (pos + 2 + old_size));
+        }
+
+        memcpy(&tlv.data[pos + 2], value, size);
+        header->tlv_length -= tlv.data[pos + 1] - 2;
+        header->tlv_length += 2 + size;
+        need_to_write = true;
+    }
+}
+
+static int insert_new_un(uint8_t field_pos, config_field_t field, uint8_t size, void *value)
+{
+    bool need_to_write = false;
+    if (header->tlv_length + 2 + size >= SIZE_TLV_MAX)
+    {
+        LOG_ERR("Cannot add value to flash, not enough space");
+        return -3;
+    }
+    tlv.data[header->tlv_length] = field;
+    tlv.data[header->tlv_length + 1] = size;
+    memcpy(&tlv.data[header->tlv_length + 2], value, size);
+    header->tlv_length += 2 + size;
+
+    need_to_write = true;
+}
+
 // TODO check bounds when passing in uint8_t length
 int config_read_u8(config_field_t field, uint8_t *value)
 {
