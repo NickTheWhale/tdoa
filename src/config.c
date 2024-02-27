@@ -45,6 +45,7 @@ typedef struct
     uint8_t *data;
 } tlv_t;
 
+
 static uint8_t _buffer[SIZE_READ];
 static config_header_t *header = (config_header_t *)_buffer;
 static tlv_t tlv;
@@ -358,7 +359,11 @@ int write_un(config_field_t field, uint8_t size, void *value)
 
 static int insert_existing_un(uint8_t field_pos, config_field_t field, uint8_t size, void *value)
 {
-    if (field_pos + )
+    if (field_pos + 1 + size >= (SIZE_TLV_MAX))
+    {
+        LOG_ERR("Field size exceeds maximum TLV length");
+        return -1;
+    }
 
 
 
