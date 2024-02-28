@@ -62,8 +62,8 @@ static void write_crc();
 static int find_field(config_field_t field);
 static int read_un(config_field_t field, uint8_t size, void *value);
 static int write_un(config_field_t field, uint8_t size, void *value);
-static int insert_existing_un(uint8_t field_pos, config_field_t field, uint8_t size, void *value);
-static int insert_new_un(uint8_t field_pos, config_field_t field, uint8_t size, void *value);
+static int insert_existing_un(int field_pos, uint8_t size, void *value);
+static int insert_new_un(int field_pos, config_field_t field, uint8_t size, void *value);
 
 int config_init()
 {
@@ -311,20 +311,21 @@ int read_un(config_field_t field, uint8_t size, void *value)
 
 int write_un(config_field_t field, uint8_t size, void *value)
 {
-    if (header->tlv_length + 2 + size >= SIZE_TLV_MAX)
+    const int bytes_to_insert = 2 + size;
+    const int bytes_avaliable = SIZE_TLV_MAX - header->tlv_length;
+    if (bytes_to_insert > bytes_avaliable)
     {
         LOG_ERR("Cannot add value to flash, not enough space");
         return -1;
     }
 
-    bool need_to_write = false;
     int bytes_inserted = -1;
     int pos = find_field(field);
     if (pos > -1) // field exists, so update the value
     {
-        bytes_inserted = insert_existing_un(pos, field, size, value);
+        bytes_inserted = insert_existing_un(pos, size, value);
     }
-    else
+    else // field does not exits, so make a new one
     {
         bytes_inserted = insert_new_un(pos, field, size, value);
     }
@@ -335,16 +336,12 @@ int write_un(config_field_t field, uint8_t size, void *value)
         return -2;
     }
 
-    ssize_t bytes_written = 0;
-    if (need_to_write)
+    write_crc();
+    ssize_t bytes_written = nvs_write(&fs, CONFIG_NVS_ID, &_buffer, SIZE_READ);
+    if (bytes_written < 0)
     {
-        write_crc();
-        bytes_written = nvs_write(&fs, CONFIG_NVS_ID, &_buffer, SIZE_READ);
-        if (bytes_written < 0)
-        {
-            LOG_ERR("Failed to write value to flash");
-            return -3;
-        }
+        LOG_ERR("Failed to write value to flash");
+        return -3;
     }
 
     k_msleep(CONFIG_READ_DELAY);
@@ -357,53 +354,63 @@ int write_un(config_field_t field, uint8_t size, void *value)
     return bytes_written;
 }
 
-static int insert_existing_un(uint8_t field_pos, config_field_t field, uint8_t size, void *value)
+static int insert_existing_un(int field_pos, uint8_t size, void *value)
 {
-    if (field_pos + 1 + size >= (SIZE_TLV_MAX))
+    const int bytes_to_insert = 2 + size;
+    const int bytes_avaliable = SIZE_TLV_MAX - header->tlv_length;
+    if (bytes_to_insert > bytes_avaliable)
     {
         LOG_ERR("Field size exceeds maximum TLV length");
         return -1;
     }
 
-
-
-
-    bool need_to_write = false;
-    if (pos + 2 + size >= (SIZE_TLV_MAX))
+    uint8_t old_size = tlv.data[field_pos + 1];
+    if (memcmp(&tlv.data[field_pos + 2], value, size) != 0 || size != old_size)
     {
-        LOG_ERR("Cannot add value to flash, not enough space");
-        return -2;
-    }
-
-    uint8_t old_size = tlv.data[pos + 1];
-    if (memcmp(&tlv.data[pos + 2], value, size) != 0 || old_size != size)
-    {
-        if (size != old_size)
+        if (size != old_size) // shift data
         {
-            memmove(&tlv.data[pos + 2 + size], &tlv.data[pos + 2 + old_size], header->tlv_length - (pos + 2 + old_size));
+            const int src_idx = field_pos + 2 + old_size;
+            const int dest_idx = field_pos + 2 + size;
+            const size_t move_size = header->tlv_length - (field_pos + 2 + old_size);
+            memmove(&tlv.data[dest_idx], &tlv.data[src_idx], move_size);
         }
 
-        memcpy(&tlv.data[pos + 2], value, size);
-        header->tlv_length -= tlv.data[pos + 1] - 2;
-        header->tlv_length += 2 + size;
-        need_to_write = true;
+        tlv.data[field_pos + 1] = size;
+        memcpy(&tlv.data[field_pos + 2], value, size);
+        header->tlv_length += size - old_size;
     }
+
+    return size;
 }
 
-static int insert_new_un(uint8_t field_pos, config_field_t field, uint8_t size, void *value)
+static int insert_new_un(int field_pos, config_field_t field, uint8_t size, void *value)
 {
-    bool need_to_write = false;
-    if (header->tlv_length + 2 + size >= SIZE_TLV_MAX)
+    const int bytes_to_insert = 2 + size;
+    const int bytes_avaliable = SIZE_TLV_MAX - header->tlv_length;
+    if (bytes_to_insert > bytes_avaliable)
     {
-        LOG_ERR("Cannot add value to flash, not enough space");
-        return -3;
+        LOG_ERR("Field size exceeds maximum TLV length");
+        return -1;
     }
-    tlv.data[header->tlv_length] = field;
-    tlv.data[header->tlv_length + 1] = size;
-    memcpy(&tlv.data[header->tlv_length + 2], value, size);
-    header->tlv_length += 2 + size;
 
-    need_to_write = true;
+    uint8_t old_size = tlv.data[field_pos + 1];
+    if (size != old_size)
+    {
+        if (size != old_size) // shift data
+        {
+            const int src_idx = field_pos + 2 + old_size;
+            const int dest_idx = field_pos + 2 + size;
+            const size_t move_size = header->tlv_length - (field_pos + 2 + old_size);
+            memmove(&tlv.data[dest_idx], &tlv.data[src_idx], move_size);
+        }
+
+        tlv.data[field_pos] = field;
+        tlv.data[field_pos + 1] = size;
+        memcpy(&tlv.data[field_pos + 2], value, size);
+        header->tlv_length += size - old_size;
+    }
+
+    return size;
 }
 
 // TODO check bounds when passing in uint8_t length
