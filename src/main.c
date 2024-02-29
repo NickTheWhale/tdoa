@@ -8,7 +8,7 @@
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
-static config_t config;
+static uwb_config_t uwb_config;
 
 int main(void)
 {
@@ -22,30 +22,19 @@ int main(void)
         return -1;
     }
 
-    // testing config
+    if (config_read_u8(CONFIG_FIELD_MODE, &uwb_config.mode) != 0)
+        LOG_WRN("Failed to read mode from config");
 
-    #define TEST_ARRAY_SIZE 5
-    uint8_t array[TEST_ARRAY_SIZE] = {0, 1, 2, 3, 4};
-    ret = config_write_u8_array(CONFIG_FIELD_TEST_1, TEST_ARRAY_SIZE, array);
-    if (ret <= 0)
-    {
-        if (ret < 0)
-        {
-            LOG_ERR("Failed to write array: %d", ret);
-            return -2;
-        }
-    }
+    if (config_read_u8_array(CONFIG_FIELD_ADDRESS, 8, uwb_config.address) != 0)
+        LOG_WRN("Failed to read address from config");
 
-    LOG_INF("Wrote to array: %d", ret);
-
-    // end testing config
-
-    ret = uwb_init(&config);
+    ret = uwb_init(&uwb_config);
     if (ret != 0)
     {
         LOG_ERR("Failed to initalize uwb: %d", ret);
         return -2;
     }
+
     LOG_DBG("Initialized uwb");
 
     uwb_start();

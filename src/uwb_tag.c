@@ -9,7 +9,7 @@ static void tag_init(void)
     LOG_DBG("Tag init");
 }
 
-static void tag_on_event(void)   
+static void tag_on_event(uwb_event_t event)   
 {
     LOG_DBG("Tag on event");
 }

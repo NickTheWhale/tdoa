@@ -6,22 +6,35 @@
 #include <stddef.h>
 #include <stdint.h>
 
+typedef struct
+{
+    uint8_t mode;
+    uint8_t address[8];
+} uwb_config_t;
+
 typedef enum
 {
-    TAG = 0,
-    ANCHOR,
-    NUMBER_OF_MODES
+    UWB_MODE_TAG = 0,
+    UWB_MODE_ANCHOR,
+    UWB_MODE_MAX
 } uwb_mode_t;
+
+typedef enum
+{
+    UWB_EVENT_PACKET_SENT = 0,
+    UWB_EVENT_PACKET_RECEIVED,
+    UWB_EVENT_RECEIVE_TIMEOUT,
+    UWB_EVENT_RECEIVE_FAILED
+} uwb_event_t;
 
 typedef struct
 {
     void (*init)(void);
-    void (*on_event)(void);
+    void (*on_event)(uwb_event_t event);
 } uwb_algorithm_t;
 
-int uwb_init(config_t *config);
+int uwb_init(uwb_config_t *config);
 void uwb_start();
-int uwb_switch_mode(uwb_mode_t mode);
 int uwb_mode_count();
 char *uwb_mode_name(uwb_mode_t mode);
 

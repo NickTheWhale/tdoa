@@ -28,7 +28,6 @@ LOG_MODULE_REGISTER(config, LOG_LEVEL_DBG);
 #define OFFSET_MAGIC 0
 #define OFFSET_MAJOR_VERSION 2
 #define OFFSET_MINOR_VERSION 3
-#define OFFSET_DATA_LENGTH 4
 
 #define CONFIG_READ_DELAY 200
 
@@ -44,7 +43,6 @@ typedef struct
 {
     uint8_t *data;
 } tlv_t;
-
 
 static uint8_t _buffer[SIZE_READ];
 static config_header_t *header = (config_header_t *)_buffer;
@@ -62,8 +60,8 @@ static void write_crc();
 static int find_field(config_field_t field);
 static int read_un(config_field_t field, uint8_t size, void *value);
 static int write_un(config_field_t field, uint8_t size, void *value);
-static int insert_existing_un(int field_pos, uint8_t size, void *value);
-static int insert_new_un(int field_pos, config_field_t field, uint8_t size, void *value);
+static int insert_un(int field_pos, config_field_t field, uint8_t size, void *value);
+static int append_un(config_field_t field, uint8_t size, void *value);
 
 int config_init()
 {
@@ -246,7 +244,7 @@ static void write_crc()
 
 static int find_field(config_field_t field)
 {
-    uint16_t pos = 0;
+    int pos = 0;
     while (pos < header->tlv_length)
     {
         if (tlv.data[pos] == field)
@@ -319,15 +317,15 @@ int write_un(config_field_t field, uint8_t size, void *value)
         return -1;
     }
 
-    int bytes_inserted = -1;
+    int bytes_inserted = 0;
     int pos = find_field(field);
-    if (pos > -1) // field exists, so update the value
+    if (pos > -1)
     {
-        bytes_inserted = insert_existing_un(pos, size, value);
+        bytes_inserted = insert_un(pos, field, size, value);
     }
-    else // field does not exits, so make a new one
+    else
     {
-        bytes_inserted = insert_new_un(pos, field, size, value);
+        bytes_inserted = append_un(field, size, value);
     }
 
     if (bytes_inserted < 0)
@@ -354,7 +352,7 @@ int write_un(config_field_t field, uint8_t size, void *value)
     return bytes_written;
 }
 
-static int insert_existing_un(int field_pos, uint8_t size, void *value)
+static int insert_un(int field_pos, config_field_t field, uint8_t size, void *value)
 {
     const int bytes_to_insert = 2 + size;
     const int bytes_avaliable = SIZE_TLV_MAX - header->tlv_length;
@@ -375,6 +373,7 @@ static int insert_existing_un(int field_pos, uint8_t size, void *value)
             memmove(&tlv.data[dest_idx], &tlv.data[src_idx], move_size);
         }
 
+        tlv.data[field_pos] = field;
         tlv.data[field_pos + 1] = size;
         memcpy(&tlv.data[field_pos + 2], value, size);
         header->tlv_length += size - old_size;
@@ -383,7 +382,7 @@ static int insert_existing_un(int field_pos, uint8_t size, void *value)
     return size;
 }
 
-static int insert_new_un(int field_pos, config_field_t field, uint8_t size, void *value)
+static int append_un(config_field_t field, uint8_t size, void *value)
 {
     const int bytes_to_insert = 2 + size;
     const int bytes_avaliable = SIZE_TLV_MAX - header->tlv_length;
@@ -393,22 +392,10 @@ static int insert_new_un(int field_pos, config_field_t field, uint8_t size, void
         return -1;
     }
 
-    uint8_t old_size = tlv.data[field_pos + 1];
-    if (size != old_size)
-    {
-        if (size != old_size) // shift data
-        {
-            const int src_idx = field_pos + 2 + old_size;
-            const int dest_idx = field_pos + 2 + size;
-            const size_t move_size = header->tlv_length - (field_pos + 2 + old_size);
-            memmove(&tlv.data[dest_idx], &tlv.data[src_idx], move_size);
-        }
-
-        tlv.data[field_pos] = field;
-        tlv.data[field_pos + 1] = size;
-        memcpy(&tlv.data[field_pos + 2], value, size);
-        header->tlv_length += size - old_size;
-    }
+    tlv.data[header->tlv_length] = field;
+    tlv.data[header->tlv_length + 1] = size;
+    memcpy(&tlv.data[header->tlv_length + 2], value, size);
+    header->tlv_length += bytes_to_insert;
 
     return size;
 }

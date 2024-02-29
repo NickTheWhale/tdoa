@@ -9,7 +9,7 @@ static void anchor_init(void)
     LOG_DBG("Anchor init");
 }
 
-static void anchor_on_event(void)   
+static void anchor_on_event(uwb_event_t event)   
 {
     LOG_DBG("Anchor on event");
 }

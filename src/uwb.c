@@ -34,7 +34,7 @@ struct
 };
 
 static void dummy_init();
-static void dummy_on_event();
+static void dummy_on_event(uwb_event_t event);
 
 static uwb_algorithm_t dummy_algorithm = {
     .init = dummy_init,
@@ -64,7 +64,7 @@ static void rx_error_callback(const dwt_cb_data_t *cb_data);
 static void tx_done_callback(const dwt_cb_data_t *cb_data);
 static void uwb_loop(void *, void *, void *);
 
-int uwb_init(config_t *config)
+int uwb_init(uwb_config_t *config)
 {
     if (openspi() != DWT_SUCCESS)
     {
@@ -110,20 +110,9 @@ void uwb_start()
                     UWB_PRIORITY, 0, K_NO_WAIT);
 }
 
-int uwb_switch_mode(uwb_mode_t mode)
-{
-    if (mode < uwb_mode_count())
-    {
-        algorithm = uwb_available_algorithms[mode].algorithm;
-        return 0;
-    }
-
-    return -1;
-}
-
 int uwb_mode_count()
 {
-    return NUMBER_OF_MODES;
+    return UWB_MODE_MAX;
 }
 
 char *uwb_mode_name(uwb_mode_t mode)
@@ -145,7 +134,7 @@ static void uwb_loop(void *, void *, void *)
             dwt_isr();
         }
 
-        k_msleep(1000);
+        // k_msleep(1000);
         // LOG_DBG("uwb loop");
     }
 }
@@ -157,30 +146,30 @@ static void uwb_isr(void)
 
 static void rx_ok_callback(const dwt_cb_data_t *cb_data)
 {
-    algorithm->on_event();
+    algorithm->on_event(UWB_EVENT_PACKET_RECEIVED);
 }
 
 static void rx_timeout_callback(const dwt_cb_data_t *cb_data)
 {
-    algorithm->on_event();
+    algorithm->on_event(UWB_EVENT_RECEIVE_TIMEOUT);
 }
 
 static void rx_error_callback(const dwt_cb_data_t *cb_data)
 {
-    algorithm->on_event();
+    algorithm->on_event(UWB_EVENT_RECEIVE_FAILED);
 }
 
 static void tx_done_callback(const dwt_cb_data_t *cb_data)
 {
-    algorithm->on_event();
+    algorithm->on_event(UWB_EVENT_PACKET_SENT);
 }
 
-void dummy_init()
+static void dummy_init()
 {
     LOG_DBG("Dummy init");
 }
 
-void dummy_on_event()
+static void dummy_on_event(uwb_event_t event)
 {
     LOG_DBG("Dummy on event");
 }
