@@ -9,9 +9,10 @@ static void tag_init(void)
     LOG_DBG("Tag init");
 }
 
-static void tag_on_event(uwb_event_t event)   
+static uint32_t tag_on_event(uwb_event_t event)   
 {
     LOG_DBG("Tag on event");
+    return 0;
 }
 
 uwb_algorithm_t uwb_tag_algorithm = {

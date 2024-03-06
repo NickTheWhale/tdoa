@@ -34,7 +34,7 @@ struct
 };
 
 static void dummy_init();
-static void dummy_on_event(uwb_event_t event);
+static uint32_t dummy_on_event(uwb_event_t event);
 
 static uwb_algorithm_t dummy_algorithm = {
     .init = dummy_init,
@@ -169,7 +169,8 @@ static void dummy_init()
     LOG_DBG("Dummy init");
 }
 
-static void dummy_on_event(uwb_event_t event)
+static uint32_t dummy_on_event(uwb_event_t event)
 {
     LOG_DBG("Dummy on event");
+    return 0;
 }
