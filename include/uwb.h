@@ -30,7 +30,7 @@ typedef enum
 typedef struct
 {
     void (*init)(void);
-    void (*on_event)(uwb_event_t event);
+    uint32_t (*on_event)(uwb_event_t event);
 } uwb_algorithm_t;
 
 int uwb_init(uwb_config_t *config);
