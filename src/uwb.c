@@ -30,8 +30,7 @@ struct
 } uwb_available_algorithms[] = {
     {.algorithm = &uwb_tag_algorithm, .name = "Tag"},
     {.algorithm = &uwb_anchor_algorithm, .name = "Anchor"},
-    {NULL, NULL}
-};
+    {NULL, NULL}};
 
 static void dummy_init();
 static uint32_t dummy_on_event(uwb_event_t event);
@@ -41,6 +40,7 @@ static uwb_algorithm_t dummy_algorithm = {
     .on_event = dummy_on_event};
 
 static uwb_algorithm_t *algorithm = &dummy_algorithm;
+static uint32_t timeout_ms = 0;
 
 static dwt_config_t dwt_config = {
     5,               /* Channel number. */
@@ -129,13 +129,14 @@ static void uwb_loop(void *, void *, void *)
 {
     while (1)
     {
-        if (k_sem_take(&uwb_irq_sem, K_MSEC(50)) == 0)
+        if (k_sem_take(&uwb_irq_sem, K_MSEC(timeout_ms)) == 0)
         {
             dwt_isr();
         }
-
-        // k_msleep(1000);
-        // LOG_DBG("uwb loop");
+        else
+        {
+            timeout_ms = algorithm->on_event(UWB_EVENT_TIMEOUT);
+        }
     }
 }
 

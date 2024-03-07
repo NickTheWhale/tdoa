@@ -1,21 +1,31 @@
 #include "uwb.h"
 
+#include "deca_device_api.h"
+#include "deca_regs.h"
+#include "deca_spi.h"
+#include "port.h"
+
 #include <zephyr/logging/log.h>
 
 LOG_MODULE_REGISTER(tag, LOG_LEVEL_DBG);
 
-static void tag_init(void)
-{
-    LOG_DBG("Tag init");
-}
 
-static uint32_t tag_on_event(uwb_event_t event)   
+static uint32_t tag_on_event(uwb_event_t event)
 {
-    LOG_DBG("Tag on event");
+
+    switch (event)
+    {
+    case UWB_EVENT_PACKET_RECEIVED:
+        uint32_t frame_len = dwt_read32bitreg(RX_FINFO_ID) & RX_FINFO_RXFLEN_MASK;
+        if (frame_len <= RX_BUF_LEN)
+        {
+            dwt_readrxdata(rx_buffer, frame_len, 0);
+        }
+    }
+
     return 0;
 }
 
 uwb_algorithm_t uwb_tag_algorithm = {
     .init = tag_init,
-    .on_event = tag_on_event
-};
+    .on_event = tag_on_event};

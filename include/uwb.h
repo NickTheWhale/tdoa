@@ -6,6 +6,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+const uint32_t TIMEOUT_MAX = 0xffffffff;
+
 typedef struct
 {
     uint8_t mode;
@@ -21,8 +23,9 @@ typedef enum
 
 typedef enum
 {
-    UWB_EVENT_PACKET_SENT = 0,
+    UWB_EVENT_TIMEOUT,
     UWB_EVENT_PACKET_RECEIVED,
+    UWB_EVENT_PACKET_SENT,
     UWB_EVENT_RECEIVE_TIMEOUT,
     UWB_EVENT_RECEIVE_FAILED
 } uwb_event_t;
