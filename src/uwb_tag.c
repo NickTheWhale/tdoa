@@ -21,6 +21,11 @@ static uint32_t tag_on_event(uwb_event_t event)
         {
             dwt_readrxdata(rx_buffer, frame_len, 0);
         }
+    case UWB_EVENT_PACKET_RECEIVED:
+    case UWB_EVENT_PACKET_SENT:
+    case UWB_EVENT_RECEIVE_TIMEOUT:
+    case UWB_EVENT_RECEIVE_FAILED:
+        break;
     }
 
     return 0;
