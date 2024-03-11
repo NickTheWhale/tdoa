@@ -29,7 +29,7 @@ LOG_MODULE_REGISTER(config, LOG_LEVEL_DBG);
 #define OFFSET_MAJOR_VERSION 2
 #define OFFSET_MINOR_VERSION 3
 
-#define CONFIG_READ_DELAY 200
+#define CONFIG_READ_DELAY 300
 
 typedef struct __packed
 {
@@ -302,7 +302,7 @@ int read_un(config_field_t field, uint8_t size, void *value)
         return -2;
     }
 
-    memcpy(value, &_buffer[pos + 2], size);
+    memcpy(value, &tlv.data[pos + 2], size);
 
     return 0;
 }

@@ -1,12 +1,12 @@
-#ifndef UWB_H
-#define UWB_H
+#ifndef __UWB_H__
+#define __UWB_H__
 
 #include "config.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
-const uint32_t TIMEOUT_MAX = 0xffffffff;
+#define UWB_TIMEOUT_MAXIMUM 0xffffffffUL;
 
 typedef struct
 {
@@ -32,11 +32,11 @@ typedef enum
 
 typedef struct
 {
-    void (*init)(void);
+    void (*init)(uwb_config_t *config);
     uint32_t (*on_event)(uwb_event_t event);
 } uwb_algorithm_t;
 
-int uwb_init(uwb_config_t *config);
+int uwb_init();
 void uwb_start();
 int uwb_mode_count();
 char *uwb_mode_name(uwb_mode_t mode);

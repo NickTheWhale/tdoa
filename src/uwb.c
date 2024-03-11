@@ -12,7 +12,7 @@
 
 LOG_MODULE_REGISTER(uwb, LOG_LEVEL_DBG);
 
-#define UWB_STACK_SIZE 500
+#define UWB_STACK_SIZE 1024
 #define UWB_PRIORITY 5
 
 K_THREAD_STACK_DEFINE(uwb_stack_area, UWB_STACK_SIZE);
@@ -32,7 +32,7 @@ struct
     {.algorithm = &uwb_anchor_algorithm, .name = "Anchor"},
     {NULL, NULL}};
 
-static void dummy_init();
+static void dummy_init(uwb_config_t *config);
 static uint32_t dummy_on_event(uwb_event_t event);
 
 static uwb_algorithm_t dummy_algorithm = {
@@ -57,6 +57,8 @@ static dwt_config_t dwt_config = {
 
 K_SEM_DEFINE(uwb_irq_sem, 0, 1);
 
+static uwb_config_t uwb_config;
+
 static void uwb_isr(void);
 static void rx_ok_callback(const dwt_cb_data_t *cb_data);
 static void rx_timeout_callback(const dwt_cb_data_t *cb_data);
@@ -64,7 +66,7 @@ static void rx_error_callback(const dwt_cb_data_t *cb_data);
 static void tx_done_callback(const dwt_cb_data_t *cb_data);
 static void uwb_loop(void *, void *, void *);
 
-int uwb_init(uwb_config_t *config)
+int uwb_init()
 {
     if (openspi() != DWT_SUCCESS)
     {
@@ -95,12 +97,22 @@ int uwb_init(uwb_config_t *config)
 
     dwt_setleds(DWT_LEDS_ENABLE);
 
+    config_read_u8(CONFIG_FIELD_MODE, &uwb_config.mode);
+    if (uwb_config.mode < uwb_mode_count())
+    {
+        algorithm = uwb_available_algorithms[uwb_config.mode].algorithm;
+    }
+    else
+    {
+        algorithm = &dummy_algorithm;
+    }
+
     return 0;
 }
 
 void uwb_start()
 {
-    algorithm->init();
+    algorithm->init(&uwb_config);
 
     struct k_thread uwb_thread;
     k_thread_create(&uwb_thread, uwb_stack_area,
@@ -131,7 +143,10 @@ static void uwb_loop(void *, void *, void *)
     {
         if (k_sem_take(&uwb_irq_sem, K_MSEC(timeout_ms)) == 0)
         {
+            // do
+            // {
             dwt_isr();
+            // } while (dwt_checkirq() != 0);
         }
         else
         {
@@ -165,13 +180,13 @@ static void tx_done_callback(const dwt_cb_data_t *cb_data)
     algorithm->on_event(UWB_EVENT_PACKET_SENT);
 }
 
-static void dummy_init()
+static void dummy_init(uwb_config_t *config)
 {
-    LOG_DBG("Dummy init");
+    // LOG_DBG("Dummy init");
 }
 
 static uint32_t dummy_on_event(uwb_event_t event)
 {
-    LOG_DBG("Dummy on event");
-    return 0;
+    // LOG_DBG("Dummy on event");
+    return UWB_TIMEOUT_MAXIMUM;
 }
