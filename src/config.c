@@ -58,10 +58,10 @@ static int write_defaults();
 static int check_crc();
 static void write_crc();
 static int find_field(config_field_t field);
-static int read_un(config_field_t field, uint8_t size, void *value);
-static int write_un(config_field_t field, uint8_t size, void *value);
-static int insert_un(int field_pos, config_field_t field, uint8_t size, void *value);
-static int append_un(config_field_t field, uint8_t size, void *value);
+static int read_value(config_field_t field, uint8_t size, void *value);
+static int write_value(config_field_t field, uint8_t size, void *value);
+static int insert_value(int field_pos, config_field_t field, uint8_t size, void *value);
+static int append_value(config_field_t field, uint8_t size, void *value);
 
 int config_init()
 {
@@ -103,7 +103,7 @@ int config_init()
     return 0;
 }
 
-int config_clear()
+int config_erase()
 {
     if (nvs_delete(&fs, CONFIG_NVS_ID) != 0)
     {
@@ -289,7 +289,7 @@ int config_field_size(config_field_t field, uint8_t *size)
     return 0;
 }
 
-int read_un(config_field_t field, uint8_t size, void *value)
+int read_value(config_field_t field, uint8_t size, void *value)
 {
     int pos = find_field(field);
     if (pos < 0)
@@ -301,13 +301,17 @@ int read_un(config_field_t field, uint8_t size, void *value)
         LOG_ERR("Field size exceeds maximum TLV length");
         return -2;
     }
-
+    if (size != tlv.data[pos + 1])
+    {
+        LOG_ERR("Field size mismatch when reading");
+        return -3;
+    }
     memcpy(value, &tlv.data[pos + 2], size);
 
     return 0;
 }
 
-int write_un(config_field_t field, uint8_t size, void *value)
+int write_value(config_field_t field, uint8_t size, void *value)
 {
     const int bytes_to_insert = 2 + size;
     const int bytes_avaliable = SIZE_TLV_MAX - header->tlv_length;
@@ -321,11 +325,11 @@ int write_un(config_field_t field, uint8_t size, void *value)
     int pos = find_field(field);
     if (pos > -1)
     {
-        bytes_inserted = insert_un(pos, field, size, value);
+        bytes_inserted = insert_value(pos, field, size, value);
     }
     else
     {
-        bytes_inserted = append_un(field, size, value);
+        bytes_inserted = append_value(field, size, value);
     }
 
     if (bytes_inserted < 0)
@@ -349,10 +353,10 @@ int write_un(config_field_t field, uint8_t size, void *value)
         return -4;
     }
 
-    return bytes_written;
+    return 0;
 }
 
-static int insert_un(int field_pos, config_field_t field, uint8_t size, void *value)
+static int insert_value(int field_pos, config_field_t field, uint8_t size, void *value)
 {
     const int bytes_to_insert = 2 + size;
     const int bytes_avaliable = SIZE_TLV_MAX - header->tlv_length;
@@ -382,7 +386,7 @@ static int insert_un(int field_pos, config_field_t field, uint8_t size, void *va
     return size;
 }
 
-static int append_un(config_field_t field, uint8_t size, void *value)
+static int append_value(config_field_t field, uint8_t size, void *value)
 {
     const int bytes_to_insert = 2 + size;
     const int bytes_avaliable = SIZE_TLV_MAX - header->tlv_length;
@@ -403,60 +407,120 @@ static int append_un(config_field_t field, uint8_t size, void *value)
 // TODO check bounds when passing in uint8_t length
 int config_read_u8(config_field_t field, uint8_t *value)
 {
-    return read_un(field, sizeof(uint8_t), value);
+    return read_value(field, sizeof(uint8_t), value);
 }
 
 int config_read_u16(config_field_t field, uint16_t *value)
 {
-    return read_un(field, sizeof(uint16_t), value);
+    return read_value(field, sizeof(uint16_t), value);
 }
 
 int config_read_u32(config_field_t field, uint32_t *value)
 {
-    return read_un(field, sizeof(uint32_t), value);
+    return read_value(field, sizeof(uint32_t), value);
+}
+
+int config_read_u64(config_field_t field, uint64_t *value)
+{
+    return read_value(field, sizeof(uint64_t), value);
+}
+
+int config_read_float(config_field_t field, float *value)
+{
+    return read_value(field, sizeof(float), value);
+}
+
+int config_read_double(config_field_t field, double *value)
+{
+    return read_value(field, sizeof(double), value);
 }
 
 int config_write_u8(config_field_t field, uint8_t value)
 {
-    return write_un(field, sizeof(uint8_t), &value);
+    return write_value(field, sizeof(uint8_t), &value);
 }
 
 int config_write_u16(config_field_t field, uint16_t value)
 {
-    return write_un(field, sizeof(uint16_t), &value);
+    return write_value(field, sizeof(uint16_t), &value);
 }
 
 int config_write_u32(config_field_t field, uint32_t value)
 {
-    return write_un(field, sizeof(uint32_t), &value);
+    return write_value(field, sizeof(uint32_t), &value);
+}
+
+int config_write_u64(config_field_t field, uint64_t value)
+{
+    return write_value(field, sizeof(uint64_t), &value);
+}
+
+int config_write_float(config_field_t field, float value)
+{
+    return write_value(field, sizeof(float), &value);
+}
+
+int config_write_double(config_field_t field, double value)
+{
+    return write_value(field, sizeof(double), &value);
 }
 
 int config_read_u8_array(config_field_t field, uint8_t length, uint8_t *array)
 {
-    return read_un(field, sizeof(uint8_t) * length, array);
+    return read_value(field, sizeof(uint8_t) * length, array);
 }
 
 int config_read_u16_array(config_field_t field, uint8_t length, uint16_t *array)
 {
-    return read_un(field, sizeof(uint16_t) * length, array);
+    return read_value(field, sizeof(uint16_t) * length, array);
 }
 
 int config_read_u32_array(config_field_t field, uint8_t length, uint32_t *array)
 {
-    return read_un(field, sizeof(uint32_t) * length, array);
+    return read_value(field, sizeof(uint32_t) * length, array);
+}
+
+int config_read_u64_array(config_field_t field, uint8_t length, uint64_t *array)
+{
+    return read_value(field, sizeof(uint64_t) * length, array);
+}
+
+int config_read_float_array(config_field_t field, uint8_t length, float *array)
+{
+    return read_value(field, sizeof(float) * length, array);
+}
+
+int config_read_double_array(config_field_t field, uint8_t length, double *array)
+{
+    return read_value(field, sizeof(double) * length, array);
 }
 
 int config_write_u8_array(config_field_t field, uint8_t length, uint8_t *array)
 {
-    return write_un(field, sizeof(uint8_t) * length, array);
+    return write_value(field, sizeof(uint8_t) * length, array);
 }
 
 int config_write_u16_array(config_field_t field, uint8_t length, uint16_t *array)
 {
-    return write_un(field, sizeof(uint16_t) * length, array);
+    return write_value(field, sizeof(uint16_t) * length, array);
 }
 
 int config_write_u32_array(config_field_t field, uint8_t length, uint32_t *array)
 {
-    return write_un(field, sizeof(uint32_t) * length, array);
+    return write_value(field, sizeof(uint32_t) * length, array);
+}
+
+int config_write_u64_array(config_field_t field, uint8_t length, uint64_t *array)
+{
+    return write_value(field, sizeof(uint64_t) * length, array);
+}
+
+int config_write_float_array(config_field_t field, uint8_t length, float *array)
+{
+    return write_value(field, sizeof(float) * length, array);
+}
+
+int config_write_double_array(config_field_t field, uint8_t length, double *array)
+{
+    return write_value(field, sizeof(double) * length, array);
 }

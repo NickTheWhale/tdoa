@@ -12,7 +12,7 @@
 
 LOG_MODULE_REGISTER(uwb, LOG_LEVEL_DBG);
 
-#define UWB_STACK_SIZE 1024
+#define UWB_STACK_SIZE 4096
 #define UWB_PRIORITY 5
 
 K_THREAD_STACK_DEFINE(uwb_stack_area, UWB_STACK_SIZE);
@@ -95,9 +95,13 @@ int uwb_init()
 
     dwt_setinterrupt(DWT_INT_TFRS | DWT_INT_RFCG | DWT_INT_RFTO | DWT_INT_RXPTO | DWT_INT_RPHE | DWT_INT_RFCE | DWT_INT_RFSL | DWT_INT_SFDT, 1);
 
-    dwt_setleds(DWT_LEDS_ENABLE);
+    dwt_setleds(DWT_LEDS_ENABLE | DWT_LEDS_INIT_BLINK);
 
-    config_read_u8(CONFIG_FIELD_MODE, &uwb_config.mode);
+    if (config_read_u8(CONFIG_FIELD_MODE, &uwb_config.mode) != 0)
+    {
+        LOG_WRN("Failed to read UWB mode from configuration, defaulting to 'tag'");
+        uwb_config.mode = UWB_MODE_TAG;
+    }
     if (uwb_config.mode < uwb_mode_count())
     {
         algorithm = uwb_available_algorithms[uwb_config.mode].algorithm;
@@ -105,6 +109,10 @@ int uwb_init()
     else
     {
         algorithm = &dummy_algorithm;
+    }
+    if (config_read_u8_array(CONFIG_FIELD_ADDRESS, 8, uwb_config.address) != 0)
+    {
+        LOG_WRN("Failed to read UWB address from configuration, defaulting to '0xffffffff'");
     }
 
     return 0;
@@ -182,11 +190,11 @@ static void tx_done_callback(const dwt_cb_data_t *cb_data)
 
 static void dummy_init(uwb_config_t *config)
 {
-    // LOG_DBG("Dummy init");
+    LOG_DBG("Dummy init");
 }
 
 static uint32_t dummy_on_event(uwb_event_t event)
 {
-    // LOG_DBG("Dummy on event");
+    LOG_DBG("Dummy on event");
     return UWB_TIMEOUT_MAXIMUM;
 }

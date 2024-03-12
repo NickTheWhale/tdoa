@@ -10,10 +10,8 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
 int main(void)
 {
-    k_msleep(1000); // wait for shell to startup
-
-    k_busy_wait(1000000);
-
+    k_msleep(1000);
+    
     int ret;
     ret = config_init();
     if (ret != 0)
