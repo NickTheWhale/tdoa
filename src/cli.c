@@ -16,7 +16,7 @@ static int cmd_config_dump(const struct shell *shell, size_t argc, char **argv)
 
 static int cmd_config_print(const struct shell *shell, size_t argc, char **argv)
 {
-    shell_print(shell, "NOT IMPLEMENTED");
+    shell_warn(shell, "NOT IMPLEMENTED");
 
     return 0;
 }
@@ -25,7 +25,7 @@ static int cmd_config_erase(const struct shell *shell, size_t argc, char **argv)
 {
     if (config_erase() != 0)
     {
-        shell_print(shell, "Failed to erase flash");
+        shell_error(shell, "Failed to erase flash");
         return -1;
     }
 
@@ -54,12 +54,12 @@ static int cmd_config_mode(const struct shell *shell, size_t argc, char **argv)
 
         if (ret != 0)
         {
-            shell_print(shell, "Failed to set UWB mode to '%s'", argv[1]);
+            shell_error(shell, "Failed to set UWB mode to '%s'", argv[1]);
             return -1;
         }
         else
         {
-            shell_print(shell, "Set UWB mode to '%s'", argv[1]);
+            shell_info(shell, "Set UWB mode to '%s'", argv[1]);
         }
     }
     else
@@ -68,12 +68,12 @@ static int cmd_config_mode(const struct shell *shell, size_t argc, char **argv)
         ret = config_read_u8(CONFIG_FIELD_MODE, &mode);
         if (ret != 0)
         {
-            shell_print(shell, "Failed to retrieve current UWB mode");
+            shell_error(shell, "Failed to retrieve current UWB mode");
             return -2;
         }
         else
         {
-            shell_print(shell, "Current UWB mode is %s", uwb_mode_name(mode));
+            shell_info(shell, "Current UWB mode is '%s'", uwb_mode_name(mode));
         }
     }
 
@@ -88,27 +88,136 @@ static int cmd_config_address(const struct shell *shell, size_t argc, char **arg
         char *token;
         char *rest = str;
 
-        while ((token = strtok_r(rest, ":;,.", &rest)))
+        uint8_t new_address[8];
+        int i = 0;
+        while ((token = strtok_r(rest, ":;,.", &rest)) && i < 8)
         {
-            shell_print(shell, "%s", token);
+            int err = 0;
+            unsigned long value = shell_strtoul(token, 16, &err);
+            if (err != 0)
+            {
+                shell_error(shell, "Invalid address format. Failed at '%s'", token);
+                return -1;
+            }
+
+            if (value > 0xff)
+            {
+                shell_error(shell, "Invalid address format at '0x%lx'", value);
+                return -2;
+            }
+
+            new_address[i] = value;
+
+            ++i;
         }
+
+        if (i != 8)
+        {
+            shell_error(shell, "Invalid address length. Got '%u', expected '%u'", i, 8);
+            return -3;
+        }
+
+        if (config_write_u8_array(CONFIG_FIELD_ADDRESS, 8, new_address) != 0)
+        {
+            shell_error(shell, "Failed to write address to config");
+            return -4;
+        }
+
+        uint8_t address[8];
+        if (config_read_u8_array(CONFIG_FIELD_ADDRESS, 8, address) != 0)
+        {
+            shell_error(shell, "Failed to re-read address from config");
+        }
+
+        shell_fprintf(shell, SHELL_VT100_COLOR_GREEN, "Set UWB address to ");
+        i = 0;
+        for (; i < 7; ++i)
+        {
+            shell_fprintf(shell, SHELL_VT100_COLOR_GREEN, "%x:", address[i]);
+        }
+        shell_fprintf(shell, SHELL_VT100_COLOR_GREEN, "%x\n", address[i]);
     }
     else
     {
-        // Print current UWB address
-        shell_print(shell, "Current UWB address is ...");
+        uint8_t address[8];
+        if (config_read_u8_array(CONFIG_FIELD_ADDRESS, 8, address) != 0)
+        {
+            shell_error(shell, "Failed to retrieve current address");
+            return -4;
+        }
+
+        shell_fprintf(shell, SHELL_VT100_COLOR_GREEN, "Current UWB address is ");
+        int i = 0;
+        for (; i < 7; ++i)
+        {
+            shell_fprintf(shell, SHELL_VT100_COLOR_GREEN, "%x:", address[i]);
+        }
+        shell_fprintf(shell, SHELL_VT100_COLOR_GREEN, "%x\n", address[i]);
     }
     return 0;
 }
 
 static int cmd_config_anchor_position(const struct shell *shell, size_t argc, char **argv)
 {
-    shell_print(shell, "NOT IMPLEMENTED");
-    if (argc > 1)
+    if (!(argc == 1 || argc == 3))
     {
+        shell_error(shell, "Invalid usage. Expected 0 or 2 arguments");
+        return -1;
     }
-    else
+    if (argc > 2)
     {
+        uint32_t new_x, new_y, old_x, old_y;
+        int err = 0;
+        new_x = shell_strtoul(argv[1], 10, &err);
+        if (err != 0)
+        {
+            shell_error(shell, "Invalid format for 'x' coordinate");
+            return -2;
+        }
+        new_y = shell_strtoul(argv[2], 10, &err);
+        if (err != 0)
+        {
+            shell_error(shell, "Invalid format for 'y' coordinate");
+            return -3;
+        }
+        if (config_write_u32(CONFIG_FIELD_ANCHOR_X_POS_MM, new_x) != 0)
+        {
+            shell_error(shell, "Failed to write 'x' coordinate");
+            return -4;
+        }
+        if (config_write_u32(CONFIG_FIELD_ANCHOR_Y_POS_MM, new_y) != 0)
+        {
+            shell_error(shell, "Failed to write 'y' coordinate");
+            return -5;
+        }
+        if (config_read_u32(CONFIG_FIELD_ANCHOR_X_POS_MM, &old_x) != 0)
+        {
+            shell_error(shell, "Failed to re-read 'x' coordinate");
+            return -6;
+        }
+        if (config_read_u32(CONFIG_FIELD_ANCHOR_Y_POS_MM, &old_y) != 0)
+        {
+            shell_error(shell, "Failed to re-read 'y' coordinate");
+            return -7;
+        }
+        if (old_x != new_x || old_y != new_y)
+        {
+            shell_error(shell, "Failed to write coordinates");
+            return -8;
+        }
+        
+        shell_info(shell, "Set coordinates to x: %u, y: %u", new_x, new_y);
+        return 0;
+    }
+    else if (argc == 1)
+    {
+        uint32_t x, y;
+        if (config_read_u32(CONFIG_FIELD_ANCHOR_X_POS_MM, &x) != 0 || config_read_u32(CONFIG_FIELD_ANCHOR_Y_POS_MM, &y) != 0)
+        {
+            shell_error(shell, "Failed to read anchor position");
+            return -9;
+        }
+        shell_info(shell, "x: %u (mm), y: %u (mm)", x, y);
     }
     return 0;
 }
@@ -119,7 +228,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(config_sub,
                                SHELL_CMD(erase, NULL, "Erase configuration from flash", cmd_config_erase),
                                SHELL_CMD_ARG(mode, NULL, "Set/Get UWB mode", cmd_config_mode, 1, 1),
                                SHELL_CMD_ARG(address, NULL, "Set/Get UWB address", cmd_config_address, 1, 1),
-                               SHELL_CMD_ARG(anchor_position, NULL, "Set/Get UWB anchor position", cmd_config_anchor_position, 1, 1),
+                               SHELL_CMD_ARG(anchor_position, NULL, "Set/Get UWB anchor position", cmd_config_anchor_position, 1, 2),
                                SHELL_SUBCMD_SET_END);
 
 SHELL_CMD_REGISTER(config, &config_sub, "Configuration commands", NULL);

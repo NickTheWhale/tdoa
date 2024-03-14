@@ -1,16 +1,21 @@
 #ifndef __PACKET_H__
 #define __PACKET_H__
 
+#include <assert.h>
 #include <stdint.h>
 #include <string.h>
 
+#define MAC802154_HEADER_SIZE 21
+#define MAC80215_PACKET_SIZE (sizeof(mac_packet_t))
+#define MAC80215_PAYLOAD_SIZE 128
+
 // Packet format with compressed PAN and 64Bit addresses
-// Maximum 128s bytes payload
+// Maximum 128 bytes payload
 typedef struct __packed
 {
     union {
         uint16_t raw;
-        struct
+        struct __packed
         {
             uint16_t frame_type : 3;
             uint16_t security_enabled : 1;
@@ -29,9 +34,9 @@ typedef struct __packed
     uint8_t dest_address[8];
     uint8_t src_address[8];
 
-    uint8_t payload[128];
+    uint8_t payload[MAC80215_PAYLOAD_SIZE];
     uint8_t deca_checksum[2];
-} packet_t;
+} mac_packet_t;
 
 typedef enum
 {
@@ -41,6 +46,11 @@ typedef enum
     MAC802154_TYPE_CMD
 } mac_packet_type_t;
 
+/**
+ * @brief Initialize packet header
+ * @param packet: pointer to mac_packet_t packet
+ * @param type: mac_packet_type_t type
+ */
 #define MAC80215_PACKET_INIT(packet, type)                   \
     do                                                       \
     {                                                        \
@@ -54,23 +64,25 @@ typedef enum
         (packet)->frame_control.fields.src_addr_mode = 3;    \
     } while (0)
 
-#define MAC80215_LOG_PACKET(packet)                                                \
-    LOG_DBG("frame_type: %u", packet.frame_control.fields.frame_type);             \
-    LOG_DBG("security_enabled: %u", packet.frame_control.fields.security_enabled); \
-    LOG_DBG("frame_pending: %u", packet.frame_control.fields.frame_pending);       \
-    LOG_DBG("ack_required: %u", packet.frame_control.fields.ack_required);         \
-    LOG_DBG("pan_id: %u", packet.frame_control.fields.pan_id);                     \
-    LOG_DBG("reserved: %u", packet.frame_control.fields.reserved);                 \
-    LOG_DBG("dest_addr_mode: %u", packet.frame_control.fields.dest_addr_mode);     \
-    LOG_DBG("frame_version: %u", packet.frame_control.fields.frame_version);       \
-    LOG_DBG("src_addr_mode: %u", packet.frame_control.fields.src_addr_mode);       \
-    LOG_DBG("sequence_number: %u", packet.sequence_number);                        \
-    LOG_DBG("dest_pan_id: %u", packet.dest_pan_id);                                \
-    LOG_HEXDUMP_DBG(packet.dest_address, 8, "dest_address");                       \
-    LOG_HEXDUMP_DBG(packet.src_address, 8, "src_address");                         \
-    LOG_HEXDUMP_DBG(packet.payload, 128, "payload");                               \
-    LOG_HEXDUMP_DBG(packet.deca_checksum, 2, "deca_checksum");
-
-#define MAC802154_HEADER_LENGTH 21
+/**
+ * @brief LOG_DBG packet contents
+ * @param packet: pointer to mac_packet_t packet
+ */
+#define MAC80215_LOG_PACKET(packet)                                                   \
+    LOG_DBG("frame_type: %u", (packet)->frame_control.fields.frame_type);             \
+    LOG_DBG("security_enabled: %u", (packet)->frame_control.fields.security_enabled); \
+    LOG_DBG("frame_pending: %u", (packet)->frame_control.fields.frame_pending);       \
+    LOG_DBG("ack_required: %u", (packet)->frame_control.fields.ack_required);         \
+    LOG_DBG("pan_id: %u", (packet)->frame_control.fields.pan_id);                     \
+    LOG_DBG("reserved: %u", (packet)->frame_control.fields.reserved);                 \
+    LOG_DBG("dest_addr_mode: %u", (packet)->frame_control.fields.dest_addr_mode);     \
+    LOG_DBG("frame_version: %u", (packet)->frame_control.fields.frame_version);       \
+    LOG_DBG("src_addr_mode: %u", (packet)->frame_control.fields.src_addr_mode);       \
+    LOG_DBG("sequence_number: %u", (packet)->sequence_number);                        \
+    LOG_DBG("dest_pan_id: %u", (packet)->dest_pan_id);                                \
+    LOG_HEXDUMP_DBG((packet)->dest_address, 8, "dest_address");                       \
+    LOG_HEXDUMP_DBG((packet)->src_address, 8, "src_address");                         \
+    LOG_HEXDUMP_DBG((packet)->payload, MAC80215_PAYLOAD_SIZE, "payload");             \
+    LOG_HEXDUMP_DBG((packet)->deca_checksum, 2, "deca_checksum");
 
 #endif // PACKET_H

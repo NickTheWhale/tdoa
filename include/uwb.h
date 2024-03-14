@@ -12,12 +12,15 @@ typedef struct
 {
     uint8_t mode;
     uint8_t address[8];
+    uint32_t anchor_x_pos_mm;
+    uint32_t anchor_y_pos_mm;
 } uwb_config_t;
 
 typedef enum
 {
     UWB_MODE_TAG = 0,
     UWB_MODE_ANCHOR,
+    UWB_MODE_DUMMY,
     UWB_MODE_MAX
 } uwb_mode_t;
 

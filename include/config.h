@@ -9,7 +9,10 @@
 typedef enum
 {
     CONFIG_FIELD_MODE = 0,
-    CONFIG_FIELD_ADDRESS
+    CONFIG_FIELD_ADDRESS,
+    CONFIG_FIELD_ANCHOR_X_POS_MM,
+    CONFIG_FIELD_ANCHOR_Y_POS_MM,
+    CONFIG_FIELD_MAX
 } config_field_t;
 
 int config_init();
@@ -47,4 +50,4 @@ int config_write_u64_array(config_field_t field, uint8_t length, uint64_t *array
 int config_write_float_array(config_field_t field, uint8_t length, float *array);
 int config_write_double_array(config_field_t field, uint8_t length, double *array);
 
-#endif // CONFIG_H
+#endif // __CONFIG_H__

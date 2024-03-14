@@ -12,8 +12,8 @@
 
 LOG_MODULE_REGISTER(uwb, LOG_LEVEL_DBG);
 
-#define UWB_STACK_SIZE 4096
-#define UWB_PRIORITY 5
+#define UWB_STACK_SIZE 2048
+#define UWB_PRIORITY 0
 
 K_THREAD_STACK_DEFINE(uwb_stack_area, UWB_STACK_SIZE);
 
@@ -22,24 +22,19 @@ K_THREAD_STACK_DEFINE(uwb_stack_area, UWB_STACK_SIZE);
 
 extern uwb_algorithm_t uwb_tag_algorithm;
 extern uwb_algorithm_t uwb_anchor_algorithm;
+extern uwb_algorithm_t uwb_dummy_algorithm;
 
 struct
 {
     uwb_algorithm_t *algorithm;
     char *name;
 } uwb_available_algorithms[] = {
-    {.algorithm = &uwb_tag_algorithm, .name = "Tag"},
-    {.algorithm = &uwb_anchor_algorithm, .name = "Anchor"},
+    {.algorithm = &uwb_tag_algorithm, .name = "tag"},
+    {.algorithm = &uwb_anchor_algorithm, .name = "anchor"},
+    {.algorithm = &uwb_dummy_algorithm, .name = "dummy"},
     {NULL, NULL}};
 
-static void dummy_init(uwb_config_t *config);
-static uint32_t dummy_on_event(uwb_event_t event);
-
-static uwb_algorithm_t dummy_algorithm = {
-    .init = dummy_init,
-    .on_event = dummy_on_event};
-
-static uwb_algorithm_t *algorithm = &dummy_algorithm;
+static uwb_algorithm_t *algorithm = &uwb_dummy_algorithm;
 static uint32_t timeout_ms = 0;
 
 static dwt_config_t dwt_config = {
@@ -99,20 +94,29 @@ int uwb_init()
 
     if (config_read_u8(CONFIG_FIELD_MODE, &uwb_config.mode) != 0)
     {
-        LOG_WRN("Failed to read UWB mode from configuration, defaulting to 'tag'");
-        uwb_config.mode = UWB_MODE_TAG;
+        LOG_WRN("Failed to read UWB mode from configuration, defaulting to '%s'", uwb_mode_name(UWB_MODE_DUMMY));
+        uwb_config.mode = UWB_MODE_DUMMY;
     }
     if (uwb_config.mode < uwb_mode_count())
     {
         algorithm = uwb_available_algorithms[uwb_config.mode].algorithm;
     }
-    else
-    {
-        algorithm = &dummy_algorithm;
-    }
     if (config_read_u8_array(CONFIG_FIELD_ADDRESS, 8, uwb_config.address) != 0)
     {
         LOG_WRN("Failed to read UWB address from configuration, defaulting to '0xffffffff'");
+    }
+    if (uwb_config.mode == UWB_MODE_ANCHOR)
+    {
+        if (config_read_u32(CONFIG_FIELD_ANCHOR_X_POS_MM, &uwb_config.anchor_x_pos_mm) != 0)
+        {
+            LOG_WRN("Failed to read anchor x position, defaulting to '0'");
+            uwb_config.anchor_x_pos_mm = 0;
+        }
+        if (config_read_u32(CONFIG_FIELD_ANCHOR_Y_POS_MM, &uwb_config.anchor_y_pos_mm) != 0)
+        {
+            LOG_WRN("Failed to read anchor y position, defaulting to '0'");
+            uwb_config.anchor_y_pos_mm = 0;
+        }
     }
 
     return 0;
@@ -123,11 +127,12 @@ void uwb_start()
     algorithm->init(&uwb_config);
 
     struct k_thread uwb_thread;
-    k_thread_create(&uwb_thread, uwb_stack_area,
-                    K_THREAD_STACK_SIZEOF(uwb_stack_area),
-                    uwb_loop,
-                    NULL, NULL, NULL,
-                    UWB_PRIORITY, 0, K_NO_WAIT);
+    k_tid_t uwb_tid = k_thread_create(&uwb_thread, uwb_stack_area,
+                                      K_THREAD_STACK_SIZEOF(uwb_stack_area),
+                                      uwb_loop,
+                                      NULL, NULL, NULL,
+                                      UWB_PRIORITY, 0, K_NO_WAIT);
+    k_thread_name_set(uwb_tid, "uwb");
 }
 
 int uwb_mode_count()
@@ -151,10 +156,10 @@ static void uwb_loop(void *, void *, void *)
     {
         if (k_sem_take(&uwb_irq_sem, K_MSEC(timeout_ms)) == 0)
         {
-            // do
-            // {
-            dwt_isr();
-            // } while (dwt_checkirq() != 0);
+            do
+            {
+                dwt_isr();
+            } while (dwt_checkirq() != 0);
         }
         else
         {
@@ -186,15 +191,4 @@ static void rx_error_callback(const dwt_cb_data_t *cb_data)
 static void tx_done_callback(const dwt_cb_data_t *cb_data)
 {
     algorithm->on_event(UWB_EVENT_PACKET_SENT);
-}
-
-static void dummy_init(uwb_config_t *config)
-{
-    LOG_DBG("Dummy init");
-}
-
-static uint32_t dummy_on_event(uwb_event_t event)
-{
-    LOG_DBG("Dummy on event");
-    return UWB_TIMEOUT_MAXIMUM;
 }
