@@ -171,10 +171,10 @@ int dwt_setlocaldataptr(unsigned int index)
 #define VTEMP_ADDRESS  (0x09)
 #define XTRIM_ADDRESS  (0x1E)
 
-#define LOG_LEVEL 3
-// #include <logging/log.h>
-#include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(deca_device);
+// #define LOG_LEVEL 3
+// // #include <logging/log.h>
+// #include <zephyr/logging/log.h>
+// LOG_MODULE_REGISTER(deca_device);
 
 
 int dwt_initialise(int config)

@@ -10,6 +10,7 @@ target_sources(app PRIVATE
     src/uwb_anchor.c
     src/uwb_dummy.c
     src/uwb_tag.c
+    src/uwb_utils.c
     src/uwb.c
 
     dw1000/src/deca_device.c

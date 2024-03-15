@@ -77,7 +77,7 @@ int uwb_init()
     port_set_dw1000_fastrate();
 
     dwt_configure(&dwt_config);
-
+    
     dwt_settxantennadelay(TX_ANTENNA_DELAY);
     dwt_setrxantennadelay(RX_ANTENNA_DELAY);
 

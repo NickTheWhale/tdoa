@@ -20,8 +20,6 @@ typedef struct __packed
     uint32_t anchor_y_pos_mm;
 } anchor_payload_t;
 
-static anchor_payload_t *anchor_payload = (anchor_payload_t *)&rx_packet.payload;
-
 static void tag_init(uwb_config_t *config);
 static uint32_t tag_on_event(uwb_event_t event);
 
@@ -44,6 +42,7 @@ static uint32_t tag_on_event(uwb_event_t event)
         dwt_readrxdata((uint8_t *)&rx_packet, read_size, 0);
         dwt_rxenable(DWT_START_RX_IMMEDIATE);
 
+        anchor_payload_t *anchor_payload = (anchor_payload_t *)&rx_packet.payload;
         uint8_t *src = rx_packet.src_address;
         LOG_DBG("Anchor '%u:%u:%u:%u:%u:%u:%u:%u' x= %u, y= %u",
                 src[0],

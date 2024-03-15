@@ -33,6 +33,9 @@ typedef enum
     UWB_EVENT_RECEIVE_FAILED
 } uwb_event_t;
 
+#define UWB_PACKET_TYPE_ANCHOR 0xAC;
+#define UWB_PACKET_TYPE_TAG 0xEE;
+
 typedef struct
 {
     void (*init)(uwb_config_t *config);

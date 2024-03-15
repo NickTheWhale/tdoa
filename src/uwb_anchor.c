@@ -5,6 +5,7 @@
 #include "deca_spi.h"
 #include "mac.h"
 #include "port.h"
+#include "uwb_utils.h"
 
 #include <stdlib.h>
 #include <zephyr/kernel.h>
@@ -15,20 +16,19 @@ LOG_MODULE_REGISTER(anchor, LOG_LEVEL_DBG);
 
 static uwb_config_t *uwb_config;
 
-static mac_packet_t tx_packet;
-static mac_packet_t rx_packet;
 typedef struct __packed
 {
+    uint64_t sys_time;
     uint32_t anchor_x_pos_mm;
     uint32_t anchor_y_pos_mm;
 } anchor_payload_t;
-
-static anchor_payload_t *payload = (anchor_payload_t *)&tx_packet.payload;
 
 static struct
 {
     uint32_t next_tx_tick;
 } ctx;
+
+static uint64_t prev_sys_time = 0;
 
 static void handle_rx_packet();
 static uint32_t start_next_event(uint64_t current_ticks);
@@ -39,13 +39,38 @@ static uint32_t anchor_on_event(uwb_event_t event);
 
 static void handle_rx_packet()
 {
-    uint32_t read_size = dwt_read32bitreg(RX_FINFO_ID) & RX_FINFO_RXFLEN_MASK;
+    mac_packet_t rx_packet;
+    anchor_payload_t *rx_payload = (anchor_payload_t *)&rx_packet.payload;
+    uint8_t ts_b[5];
+    uint64_t rx_timestamp, tx_timestamp;
+    uint32_t read_size;
+
+    dwt_readrxtimestamp(ts_b);
+    rx_timestamp = uwb_utils_timestamp_to_u64(ts_b);
+
+    dwt_readtxtimestamp(ts_b);
+    tx_timestamp = uwb_utils_timestamp_to_u64(ts_b);
+
+    read_size = dwt_read32bitreg(RX_FINFO_ID) & RX_FINFO_RXFLEN_MASK;
     if (read_size > MAC80215_PACKET_SIZE)
         read_size = MAC80215_PACKET_SIZE;
-
     dwt_readrxdata((uint8_t *)&rx_packet, read_size, 0);
 
-    MAC80215_LOG_PACKET(&rx_packet);
+    uint64_t sys_time = rx_payload->sys_time;
+    int64_t sys_time_delta = sys_time - prev_sys_time;
+    prev_sys_time = sys_time;
+    int64_t delta = rx_timestamp - tx_timestamp;
+    float delta_percent = (double)rx_timestamp / (double)tx_timestamp;
+
+    LOG_RAW("rx: %llu\ntx: %llu\ndelta: %llu\ndelta (%%): %f\nsys_time: %llu\nsys_time_delta: %lld\n\n",
+            rx_timestamp,
+            tx_timestamp,
+            delta,
+            delta_percent,
+            sys_time,
+            sys_time_delta);
+
+    // MAC80215_LOG_PACKET(&rx_packet);
 }
 
 static uint32_t start_next_event(uint64_t current_ticks)
@@ -70,8 +95,9 @@ static uint32_t start_next_event(uint64_t current_ticks)
 
 static uint32_t randomize_delay_to_next_tx()
 {
-    const uint32_t average_delay = 5000;
-    const uint32_t interval = 100;
+    return 100000;
+    const uint32_t average_delay = 2000;
+    const uint32_t interval = 10;
     uint32_t random = sys_rand32_get();
 
     uint32_t delay = average_delay + random % interval - interval / 2;
@@ -80,6 +106,18 @@ static uint32_t randomize_delay_to_next_tx()
 
 static int send_tx_packet()
 {
+    mac_packet_t tx_packet;
+    anchor_payload_t *tx_payload = (anchor_payload_t *)&tx_packet.payload;
+    MAC80215_PACKET_INIT(&tx_packet, MAC802154_TYPE_DATA);
+    memcpy(tx_packet.src_address, uwb_config->address, 8);
+    tx_payload->anchor_x_pos_mm = uwb_config->anchor_x_pos_mm;
+    tx_payload->anchor_y_pos_mm = uwb_config->anchor_y_pos_mm;
+
+    uint8_t ts_b[5];
+    dwt_readsystime(ts_b);
+    uint64_t sys_time = uwb_utils_timestamp_to_u64(ts_b);
+    tx_payload->sys_time = sys_time;
+
     if (dwt_writetxdata(sizeof(tx_packet), (uint8_t *)&tx_packet, 0) != DWT_SUCCESS)
     {
         return -1;
@@ -91,9 +129,6 @@ static int send_tx_packet()
         return -2;
     }
 
-    LOG_DBG("tx packet being sent:");
-    MAC80215_LOG_PACKET(&tx_packet);
-
     return 0;
 }
 
@@ -101,11 +136,6 @@ static void anchor_init(uwb_config_t *config)
 {
     LOG_DBG("Anchor init");
     uwb_config = config;
-
-    MAC80215_PACKET_INIT(&tx_packet, MAC802154_TYPE_DATA);
-    memcpy(tx_packet.src_address, uwb_config->address, 8);
-    payload->anchor_x_pos_mm = uwb_config->anchor_x_pos_mm;
-    payload->anchor_y_pos_mm = uwb_config->anchor_y_pos_mm;
 
     ctx.next_tx_tick = 0;
 }
