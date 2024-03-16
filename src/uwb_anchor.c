@@ -95,8 +95,7 @@ static uint32_t start_next_event(uint64_t current_ticks)
 
 static uint32_t randomize_delay_to_next_tx()
 {
-    return 100000;
-    const uint32_t average_delay = 2000;
+    const uint32_t average_delay = 200;
     const uint32_t interval = 10;
     uint32_t random = sys_rand32_get();
 
@@ -106,6 +105,14 @@ static uint32_t randomize_delay_to_next_tx()
 
 static int send_tx_packet()
 {
+
+    uint8_t ts_b[5];
+    dwt_readsystime(ts_b);
+    uint64_t start = uwb_utils_timestamp_to_u64(ts_b);
+
+    uint32_t delay = (start + (200000000 * 10)) >> 8;
+    dwt_setdelayedtrxtime(delay);
+
     mac_packet_t tx_packet;
     anchor_payload_t *tx_payload = (anchor_payload_t *)&tx_packet.payload;
     MAC80215_PACKET_INIT(&tx_packet, MAC802154_TYPE_DATA);
@@ -113,21 +120,25 @@ static int send_tx_packet()
     tx_payload->anchor_x_pos_mm = uwb_config->anchor_x_pos_mm;
     tx_payload->anchor_y_pos_mm = uwb_config->anchor_y_pos_mm;
 
-    uint8_t ts_b[5];
-    dwt_readsystime(ts_b);
-    uint64_t sys_time = uwb_utils_timestamp_to_u64(ts_b);
-    tx_payload->sys_time = sys_time;
-
     if (dwt_writetxdata(sizeof(tx_packet), (uint8_t *)&tx_packet, 0) != DWT_SUCCESS)
     {
+        LOG_ERR("Failed to write tx data");
         return -1;
     }
     dwt_writetxfctrl(sizeof(tx_packet), 0, 1);
 
-    if (dwt_starttx(DWT_START_TX_IMMEDIATE) != DWT_SUCCESS)
+    if (dwt_starttx(DWT_START_TX_DELAYED) != DWT_SUCCESS)
     {
+        LOG_ERR("Failed to send tx packet");
         return -2;
     }
+
+    dwt_readsystime(ts_b);
+    uint64_t end = uwb_utils_timestamp_to_u64(ts_b);
+
+    uint64_t send_time = end - start;
+
+    LOG_DBG("Send time: %llu", send_time);
 
     return 0;
 }
