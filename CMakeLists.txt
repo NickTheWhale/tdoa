@@ -27,6 +27,10 @@ target_include_directories(app PRIVATE
     include
 )
 
+target_compile_definitions(app PRIVATE
+    DWT_API_ERROR_CHECK
+)
+
 # # app mode (anchor/tag)
 # target_compile_definitions(app PRIVATE
 # TAG_MODE=0

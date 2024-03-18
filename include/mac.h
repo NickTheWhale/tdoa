@@ -5,9 +5,10 @@
 #include <stdint.h>
 #include <string.h>
 
-#define MAC802154_HEADER_SIZE 21
 #define MAC80215_PACKET_SIZE (sizeof(mac_packet_t))
-#define MAC80215_PAYLOAD_SIZE 128
+#define MAC802154_PACKET_HEADER_SIZE 21
+#define MAC80215_PACKET_PAYLOAD_SIZE 128
+#define MAC80215_PACKET_TAIL_SIZE 2
 
 // Packet format with compressed PAN and 64Bit addresses
 // Maximum 128 bytes payload
@@ -15,7 +16,7 @@ typedef struct __packed
 {
     union {
         uint16_t raw;
-        struct __packed
+        struct
         {
             uint16_t frame_type : 3;
             uint16_t security_enabled : 1;
@@ -34,7 +35,7 @@ typedef struct __packed
     uint8_t dest_address[8];
     uint8_t src_address[8];
 
-    uint8_t payload[MAC80215_PAYLOAD_SIZE];
+    uint8_t payload[MAC80215_PACKET_PAYLOAD_SIZE];
     uint8_t deca_checksum[2];
 } mac_packet_t;
 

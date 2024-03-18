@@ -3,10 +3,12 @@
 
 #include "config.h"
 
+#include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #define UWB_TIMEOUT_MAXIMUM 0xffffffffUL;
+#define UWB_PAN_ID 0xbeef
 
 typedef struct
 {
@@ -26,15 +28,26 @@ typedef enum
 
 typedef enum
 {
-    UWB_EVENT_TIMEOUT,
+    UWB_EVENT_TIMEOUT = 0,
     UWB_EVENT_PACKET_RECEIVED,
     UWB_EVENT_PACKET_SENT,
     UWB_EVENT_RECEIVE_TIMEOUT,
     UWB_EVENT_RECEIVE_FAILED
 } uwb_event_t;
 
-#define UWB_PACKET_TYPE_ANCHOR 0xAC;
-#define UWB_PACKET_TYPE_TAG 0xEE;
+typedef enum
+{
+    UWB_PACKET_TYPE_SYNC = 0,
+    a,
+    b,
+    c,
+    d,
+    e,
+    f,
+    UWB_PACKET_TYPE_MAX
+} uwb_packet_type_t;
+
+_Static_assert(UWB_PACKET_TYPE_MAX < 8, "Too many uwb packet types");
 
 typedef struct
 {

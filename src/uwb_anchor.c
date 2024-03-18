@@ -21,7 +21,7 @@ typedef struct __packed
     uint64_t sys_time;
     uint32_t anchor_x_pos_mm;
     uint32_t anchor_y_pos_mm;
-} anchor_payload_t;
+} anchor_sync_payload_t;
 
 static struct
 {
@@ -40,7 +40,7 @@ static uint32_t anchor_on_event(uwb_event_t event);
 static void handle_rx_packet()
 {
     mac_packet_t rx_packet;
-    anchor_payload_t *rx_payload = (anchor_payload_t *)&rx_packet.payload;
+    anchor_sync_payload_t *rx_payload = (anchor_sync_payload_t *)&rx_packet.payload;
     uint8_t ts_b[5];
     uint64_t rx_timestamp, tx_timestamp;
     uint32_t read_size;
@@ -114,7 +114,7 @@ static int send_tx_packet()
     dwt_setdelayedtrxtime(delay);
 
     mac_packet_t tx_packet;
-    anchor_payload_t *tx_payload = (anchor_payload_t *)&tx_packet.payload;
+    anchor_sync_payload_t *tx_payload = (anchor_sync_payload_t *)&tx_packet.payload;
     MAC80215_PACKET_INIT(&tx_packet, MAC802154_TYPE_DATA);
     memcpy(tx_packet.src_address, uwb_config->address, 8);
     tx_payload->anchor_x_pos_mm = uwb_config->anchor_x_pos_mm;
