@@ -7,8 +7,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define UWB_TIMEOUT_MAXIMUM 0xffffffffUL;
-#define UWB_PAN_ID 0xbeef
+#define UWB_TIMEOUT_MAXIMUM 0xFFFFFFFFUL;
+#define UWB_PAN_ID 0xBEEF
+
 
 typedef struct
 {
@@ -38,12 +39,6 @@ typedef enum
 typedef enum
 {
     UWB_PACKET_TYPE_SYNC = 0,
-    a,
-    b,
-    c,
-    d,
-    e,
-    f,
     UWB_PACKET_TYPE_MAX
 } uwb_packet_type_t;
 
