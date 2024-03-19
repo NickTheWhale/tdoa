@@ -10,7 +10,7 @@
  *
  * All rights reserved.
  *
- * @author DecaWave
+ * @author DecaWave, modified by Nicholas Loehrke (nicholasnloehrke@gmail.com)
  */
 
 #include "port.h"

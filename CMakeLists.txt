@@ -30,15 +30,3 @@ target_include_directories(app PRIVATE
 target_compile_definitions(app PRIVATE
     DWT_API_ERROR_CHECK
 )
-
-# # app mode (anchor/tag)
-# target_compile_definitions(app PRIVATE
-# TAG_MODE=0
-# ANCHOR_MODE=1
-# )
-
-# if (DEFINED APP_MODE AND APP_MODE STREQUAL "TAG")
-# target_compile_definitions(app PRIVATE APP_MODE=TAG_MODE)
-# elseif (DEFINED APP_MODE AND APP_MODE STREQUAL "ANCHOR")
-# target_compile_definitions(app PRIVATE APP_MODE=ANCHOR_MODE)
-# endif()
