@@ -61,7 +61,7 @@ typedef enum
         (packet)->frame_control.fields.security_enabled = 0; \
         (packet)->frame_control.fields.frame_pending = 0;    \
         (packet)->frame_control.fields.ack_required = 0;     \
-        (packet)->frame_control.fields.pan_id = UWB_PAN_ID;  \
+        (packet)->frame_control.fields.pan_id = 1;           \
         (packet)->frame_control.fields.dest_addr_mode = 3;   \
         (packet)->frame_control.fields.frame_version = 1;    \
         (packet)->frame_control.fields.src_addr_mode = 3;    \
@@ -85,7 +85,7 @@ typedef enum
     LOG_DBG("dest_pan_id: %u", (packet)->dest_pan_id);                                \
     LOG_HEXDUMP_DBG((packet)->dest_address, 8, "dest_address");                       \
     LOG_HEXDUMP_DBG((packet)->src_address, 8, "src_address");                         \
-    LOG_HEXDUMP_DBG((packet)->payload, MAC80215_PACKET_PAYLOAD_SIZE, "payload");             \
+    LOG_HEXDUMP_DBG((packet)->payload, MAC80215_PACKET_PAYLOAD_SIZE, "payload");      \
     LOG_HEXDUMP_DBG((packet)->deca_checksum, 2, "deca_checksum");
 
 #endif // PACKET_H
