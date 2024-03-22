@@ -45,6 +45,8 @@
 
 LOG_MODULE_REGISTER(anchor, LOG_LEVEL_DBG);
 
+#define TX_SEND_DELAY
+
 static uwb_config_t *uwb_config;
 
 typedef struct __packed
