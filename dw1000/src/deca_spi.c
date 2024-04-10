@@ -95,16 +95,29 @@ static struct spi_cs_control cs_ctrl;
 //     return 0;
 // }
 
+
+/*
+ * Function: openspi()
+ *
+ * Low level abstract function to open and initialise access to the SPI device.
+ * returns 0 for success, or -1 for error
+ */
 int openspi(void)
 {
-    cs_ctrl = *SPI_CS_CONTROL_PTR_DT(DT_NODELABEL(ieee802154), 2);
-
-    for (int i = 0; i < SPI_CFGS_COUNT; ++i) {
-        spi_cfgs[i].cs = &cs_ctrl;
-    }
-    spi_cfg = &spi_cfgs[0];
-
     spi = DEVICE_DT_GET(DT_NODELABEL(spi2));
+
+    if (!device_is_ready(spi)) 
+    {
+        LOG_ERR("SPI device is not ready");
+        return DWT_ERROR;
+    }
+
+    cs_ctrl = (struct spi_cs_control) {
+        .gpio = GPIO_DT_SPEC_GET(DT_NODELABEL(spi2), cs_gpios),
+        .delay = 2,
+    };
+
+    spi_cfg = &spi_cfgs[0];
 
     spi_cfg->operation = SPI_WORD_SET(8);
     spi_cfg->frequency = 2000000;
@@ -118,8 +131,37 @@ int openspi(void)
     tx.count = 1;
     rx.count = 1;
 
-    return 0;
+    return DWT_SUCCESS;
 }
+
+
+
+
+// int openspi(void)
+// {
+//     cs_ctrl = SPI_CS_CONTROL_INIT(DT_NODELABEL(spi2), 2);
+
+//     for (int i = 0; i < SPI_CFGS_COUNT; ++i) {
+//         spi_cfgs[i].cs = cs_ctrl;
+//     }
+//     spi_cfg = &spi_cfgs[0];
+
+//     spi = DEVICE_DT_GET(DT_NODELABEL(spi2));
+
+//     spi_cfg->operation = SPI_WORD_SET(8);
+//     spi_cfg->frequency = 2000000;
+
+//     memset(&tx_buf[0], 0, 255);
+//     memset(&rx_buf[0], 0, 255);
+//     bufs[0].buf = &tx_buf[0];
+//     bufs[1].buf = &rx_buf[0];
+//     tx.buffers = &bufs[0];
+//     rx.buffers = &bufs[1];
+//     tx.count = 1;
+//     rx.count = 1;
+
+//     return 0;
+// }
 
 void set_spi_speed_slow(void)
 {
