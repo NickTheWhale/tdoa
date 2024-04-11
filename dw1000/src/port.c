@@ -10,7 +10,7 @@
  *
  * All rights reserved.
  *
- * @author DecaWave
+ * @author DecaWave, modified by Nicholas Loehrke (nicholasnloehrke@gmail.com)
  */
 
 #include "port.h"
@@ -142,7 +142,7 @@ void port_set_dw1000_fastrate(void)
  */
 void port_set_deca_isr(port_deca_isr_t deca_isr)
 {
-    printk("%s: Binding to GPIO0 and pin %d\n", __func__, GPIO_PIN);
+    // printk("%s: Binding to GPIO0 and pin %d\n", __func__, GPIO_PIN);
     // gpio_dev = device_get_binding(DT_LABEL(DT_NODELABEL(gpio0))); // changed 10/23/23
     gpio_dev = DEVICE_DT_GET(DT_NODELABEL(gpio0));
     if (!gpio_dev) {

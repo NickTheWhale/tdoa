@@ -18,28 +18,27 @@
 #include "port.h"
 
 #include <errno.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/spi.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/spi.h>
-#include <zephyr/drivers/gpio.h>
 
-#define LOG_LEVEL 3
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(deca_spi);
 
-const struct device * spi;
-struct spi_config * spi_cfg;
-struct spi_config   spi_cfgs [4] = {0};
+const struct device *spi;
+struct spi_config *spi_cfg;
+struct spi_config spi_cfgs[4] = {0};
 
-#define SPI_CFGS_COUNT ((sizeof(spi_cfgs)/sizeof(spi_cfgs[0])))
+#define SPI_CFGS_COUNT ((sizeof(spi_cfgs) / sizeof(spi_cfgs[0])))
 
-uint8_t tx_buf [255];
-uint8_t rx_buf [255];
+uint8_t tx_buf[255];
+uint8_t rx_buf[255];
 
-struct spi_buf bufs [2];
+struct spi_buf bufs[2];
 
-struct spi_buf_set tx; 
+struct spi_buf_set tx;
 struct spi_buf_set rx;
 
 static struct spi_cs_control cs_ctrl;
@@ -52,59 +51,27 @@ static struct spi_cs_control cs_ctrl;
  *****************************************************************************
  */
 
-/*
- * Function: openspi()
+/**
+ * @brief initializes and opens spi
  *
- * Low level abstract function to open and initialise access to the SPI device.
- * returns 0 for success, or -1 for error
+ * @return DWT_ERROR or DWT_SUCCESS
  */
-// int openspi(void)
-// {
-//     /* Propagate CS config into all spi_cfgs[] elements */
-//     cs_ctrl.gpio_dev = device_get_binding(DT_LABEL(DT_PHANDLE_BY_IDX(DT_NODELABEL(ieee802154), cs_gpios, 0)));
-//     if (!cs_ctrl.gpio_dev) {
-//         printk("%s: GPIO binding failed.\n", __func__);
-//         return -1;
-//     }
-//     cs_ctrl.gpio_pin = DT_PHA(DT_NODELABEL(spi2), cs_gpios, pin);
-//     cs_ctrl.delay = 0U;
-//     cs_ctrl.gpio_dt_flags =  DT_PHA(DT_NODELABEL(spi2), cs_gpios, flags);
-//     for (int i=0; i < SPI_CFGS_COUNT; i++) {
-//         spi_cfgs[i].cs = &cs_ctrl;
-//     }
-
-//     spi_cfg = &spi_cfgs[0];
-
-//     spi = device_get_binding(DT_LABEL(DT_NODELABEL(spi2)));
-//     if (!spi) {
-//         printk("%s: SPI binding failed.\n", __func__);
-//         return -1;
-//     }
-//     spi_cfg->operation = SPI_WORD_SET(8);
-//     spi_cfg->frequency = 2000000;
-
-//     memset(&tx_buf[0], 0, 255);
-//     memset(&rx_buf[0], 0, 255);
-//     bufs[0].buf = &tx_buf[0];
-//     bufs[1].buf = &rx_buf[0];
-//     tx.buffers = &bufs[0];
-//     rx.buffers = &bufs[1];
-//     tx.count = 1;
-//     rx.count = 1;
-
-//     return 0;
-// }
-
 int openspi(void)
 {
-    cs_ctrl = *SPI_CS_CONTROL_PTR_DT(DT_NODELABEL(ieee802154), 2);
-
-    for (int i = 0; i < SPI_CFGS_COUNT; ++i) {
-        spi_cfgs[i].cs = &cs_ctrl;
-    }
-    spi_cfg = &spi_cfgs[0];
-
     spi = DEVICE_DT_GET(DT_NODELABEL(spi2));
+
+    if (!device_is_ready(spi))
+    {
+        LOG_ERR("SPI device is not ready");
+        return DWT_ERROR;
+    }
+
+    cs_ctrl = (struct spi_cs_control){
+        .gpio = GPIO_DT_SPEC_GET(DT_NODELABEL(spi2), cs_gpios),
+        .delay = 2,
+    };
+
+    spi_cfg = &spi_cfgs[0];
 
     spi_cfg->operation = SPI_WORD_SET(8);
     spi_cfg->frequency = 2000000;
@@ -118,9 +85,17 @@ int openspi(void)
     tx.count = 1;
     rx.count = 1;
 
-    return 0;
+    return DWT_SUCCESS;
 }
 
+/**
+ * @brief Sets the SPI speed to a slow value.
+ *
+ * This function sets the SPI configuration to operate at a slower speed.
+ * It updates the SPI configuration structure with the desired settings,
+ * including the word size and frequency. It also clears the transmit and
+ * receive buffers.
+ */
 void set_spi_speed_slow(void)
 {
     spi_cfg = &spi_cfgs[0];
@@ -149,7 +124,7 @@ void set_spi_speed_fast(void)
  */
 int closespi(void)
 {
-    //TODO
+    // TODO
     return 0;
 }
 
@@ -160,12 +135,12 @@ int closespi(void)
  * Takes two separate byte buffers for write header and write data
  * returns 0 for success
  */
-int writetospi(uint16           headerLength,
-               const    uint8 * headerBuffer,
-               uint32           bodyLength,
-               const    uint8 * bodyBuffer)
+int writetospi(uint16 headerLength,
+               const uint8 *headerBuffer,
+               uint32 bodyLength,
+               const uint8 *bodyBuffer)
 {
-    decaIrqStatus_t  stat;
+    decaIrqStatus_t stat;
 
 #if 0
     LOG_HEXDUMP_INF(headerBuffer, headerLength, "writetospi: Header");
@@ -192,15 +167,15 @@ int writetospi(uint16           headerLength,
  *
  * Low level abstract function to read from the SPI
  * Takes two separate byte buffers for write header and read data
- * returns the offset into read buffer where first byte of read data 
+ * returns the offset into read buffer where first byte of read data
  * may be found, or returns 0
  */
-int readfromspi(uint16        headerLength,
-                const uint8 * headerBuffer,
-                uint32        readLength,
-                uint8       * readBuffer)
+int readfromspi(uint16 headerLength,
+                const uint8 *headerBuffer,
+                uint32 readLength,
+                uint8 *readBuffer)
 {
-    decaIrqStatus_t  stat;
+    decaIrqStatus_t stat;
 
     stat = decamutexon();
 

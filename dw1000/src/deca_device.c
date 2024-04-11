@@ -171,10 +171,10 @@ int dwt_setlocaldataptr(unsigned int index)
 #define VTEMP_ADDRESS  (0x09)
 #define XTRIM_ADDRESS  (0x1E)
 
-#define LOG_LEVEL 3
-// #include <logging/log.h>
-#include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(deca_device);
+// #define LOG_LEVEL 3
+// // #include <logging/log.h>
+// #include <zephyr/logging/log.h>
+// LOG_MODULE_REGISTER(deca_device);
 
 
 int dwt_initialise(int config)
@@ -201,7 +201,7 @@ int dwt_initialise(int config)
     {
         return DWT_ERROR ;
     }
-    printk("device_id: %08x\n", device_id);
+    // printk("device_id: %08x\n", device_id);
 
     if(!(DWT_DW_WAKE_UP & config)) // Don't reset the device if DWT_DW_WAKE_UP bit is set, e.g. when calling this API after wake up
     {
@@ -894,7 +894,7 @@ void dwt_writetxfctrl(uint16 txFrameLength, uint16 txBufferOffset, int ranging)
 #ifdef DWT_API_ERROR_CHECK
     assert((pdw1000local->longFrames && (txFrameLength <= 1023)) || (txFrameLength <= 127));
     assert((txBufferOffset + txFrameLength) <= 1024);
-    assert((ranging == 0) || (ranging == 1))
+    assert((ranging == 0) || (ranging == 1));
 #endif
 
     // Write the frame length to the TX frame control register
@@ -3516,7 +3516,7 @@ uint8 dwt_convertdegtemptoraw(int16 externaltemp)
     int32 raw_temp;
 #ifdef DWT_API_ERROR_CHECK
     assert(pdw1000local->otp_mask & DWT_READ_OTP_TMP);
-    assert((externaltemp > -800) && (externaltemp < 1500))
+    assert((externaltemp > -800) && (externaltemp < 1500));
 #endif
     // the User Manual formula is: Temperature (C) = ( (SAR_LTEMP -- OTP_READ(Vtemp @ 23C) ) x 1.14) + 23
     raw_temp = ((externaltemp - 230 + 5) * DCELCIUS_TO_SAR_TEMP_CONV) ; //+5 for better rounding

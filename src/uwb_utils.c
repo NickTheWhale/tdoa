@@ -1,5 +1,5 @@
 /**
- * @file main.c
+ * @file uwb_utils.c
  * @author Nicholas Loehrke (nicholasnloehrke@gmail.com)
  * @brief
  * @version 1.0.0
@@ -29,38 +29,16 @@
  *
  */
 
-#include "config.h"
-#include "deca_device_api.h"
-#include "uwb.h"
+#include "uwb_utils.h"
 
-#include <zephyr/logging/log.h>
-#include <zephyr/shell/shell.h>
-#include <zephyr/sys/crc.h>
-
-LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
-
-int main(void)
+uint64_t uwb_utils_timestamp_to_u64(uint8_t *timestamp_buffer)
 {
-    k_msleep(1000);
-
-    int ret;
-    ret = config_init();
-    if (ret != 0)
+    uint64_t ts = 0;
+    int i;
+    for (i = 4; i >= 0; i--)
     {
-        LOG_ERR("Failed to initialize config: %d", ret);
-        return -1;
+        ts <<= 8;
+        ts |= timestamp_buffer[i];
     }
-
-    ret = uwb_init();
-    if (ret != 0)
-    {
-        LOG_ERR("Failed to initalize uwb: %d", ret);
-        return -2;
-    }
-
-    LOG_DBG("Initialized uwb");
-
-    uwb_start();
-
-    return 0;
+    return ts;
 }
