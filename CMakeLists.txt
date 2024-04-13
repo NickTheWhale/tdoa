@@ -6,6 +6,7 @@ project(tdoa)
 target_sources(app PRIVATE
     src/cli.c
     src/config.c
+    src/hashmap.c
     src/main.c
     src/uwb_anchor.c
     src/uwb_dummy.c

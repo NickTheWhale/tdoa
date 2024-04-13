@@ -41,10 +41,10 @@
 #define MAC80215_PACKET_SIZE (sizeof(mac_packet_t))
 #define MAC802154_PACKET_HEADER_SIZE 21
 #define MAC80215_PACKET_PAYLOAD_SIZE 128
-#define MAC80215_PACKET_TAIL_SIZE 2
+#define MAC80215_PACKET_PAYLOAD_SIZE_USABLE 126
 
 // Packet format with compressed PAN and 64Bit addresses
-// Maximum 128 bytes payload
+// Maximum 128 bytes payload (last two bytes are reserved for deca checksum, so 126 bytes usable)
 typedef struct __packed
 {
     union {
@@ -69,7 +69,7 @@ typedef struct __packed
     uint8_t src_address[8];
 
     uint8_t payload[MAC80215_PACKET_PAYLOAD_SIZE];
-    uint8_t deca_checksum[2];
+    // uint8_t deca_checksum[2];
 } mac_packet_t;
 
 typedef enum
