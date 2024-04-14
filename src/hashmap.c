@@ -31,10 +31,10 @@
 
 #include "hashmap.h"
 
+#include <assert.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/printk.h>
-#include <assert.h>
 
 LOG_MODULE_REGISTER(hashmap, LOG_LEVEL_DBG);
 
