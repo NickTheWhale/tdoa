@@ -32,15 +32,28 @@
 #ifndef __HASHMAP_H__
 #define __HASHMAP_H__
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #define HASH_KEY_SIZE 8
-#define HASH_MAX_BUCKETS 128
+#define HASH_CAPACITY 64
 
-void hash_init(size_t value_size);
-int hash_insert(uint8_t key[HASH_KEY_SIZE], void* value);
-int hash_get(uint8_t key[HASH_KEY_SIZE], void *value);
+typedef struct
+{
+    int n;
+} anchor_context_t;
+
+typedef anchor_context_t hash_value_t;
+
+void hash_init();
+int hash_insert(uint8_t key[HASH_KEY_SIZE], hash_value_t *value);
+int hash_get(uint8_t key[HASH_KEY_SIZE], hash_value_t *value);
 int hash_remove(uint8_t key[HASH_KEY_SIZE]);
+bool hash_empty();
+size_t hash_available();
+
+// testing code
+void hash_printk();
 
 #endif // __HASHMAP_H__

@@ -71,6 +71,11 @@ int openspi(void)
         .delay = 2,
     };
 
+    for (int i = 0; i < SPI_CFGS_COUNT; ++i)
+    {
+        spi_cfgs[i].cs = cs_ctrl;
+    }
+
     spi_cfg = &spi_cfgs[0];
 
     spi_cfg->operation = SPI_WORD_SET(8);
