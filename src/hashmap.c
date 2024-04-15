@@ -104,13 +104,9 @@ int hash_get(uint8_t key[HASH_KEY_SIZE], hash_value_t *value)
             *value = buckets[try].value;
             return 0;
         }
-        if (!buckets[try].occupied)
-        {
-            return -1;
-        }
     }
 
-    return -2;
+    return -1;
 }
 
 int hash_remove(uint8_t key[HASH_KEY_SIZE])

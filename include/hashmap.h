@@ -44,6 +44,7 @@ typedef struct
     int n;
 } anchor_context_t;
 
+
 typedef anchor_context_t hash_value_t;
 
 void hash_init();
