@@ -1,5 +1,5 @@
 debug/
 release/
 build/
-twister-out/
+twister-out*/
 .vscode/
